@@ -1,6 +1,6 @@
 {
-  "name": "node-red-contrib-eqcloud-monitoring",
-  "version": "1.0.0",
+  "name": "@ais_automation/node-red-contrib-eqcloud-monitoring",
+  "version": "1.0.1",
   "node-red": {
     "nodes": {
       "Monitoring": "Monitoring.js"
@@ -12,14 +12,10 @@
   },
   "description": "Client for EquipmentCloud® Monitoring",
   "license": "MIT",
-  "author": {
-    "name": "AIS Automation GmbH",
-    "email": "eqcloud-support@ais-automation.com",
-    "url": "https://eqcloud.ais-automation.com"
-  },
+  "author": "AIS Automation GmbH <eqcloud-support@ais-automation.com> (https://eqcloud.ais-automation.com)",
   "repository": {
     "type": "github",
-    "url": "https://github.com/AISAutomation/node-red-contrib-eqcloud-monitoring"
+    "url": "git+https://github.com/AISAutomation/node-red-contrib-eqcloud-monitoring.git"
   },
   "keywords": [
     "IoT",
@@ -59,5 +55,13 @@
   },
   "scripts": {
     "test": "mocha --recursive 'test/*_spec.js' --exit"
+  },
+  "bugs": {
+    "url": "https://github.com/AISAutomation/node-red-contrib-eqcloud-monitoring/issues"
+  },
+  "homepage": "https://github.com/AISAutomation/node-red-contrib-eqcloud-monitoring#readme",
+  "main": "Monitoring.js",
+  "directories": {
+    "test": "test"
   }
 }

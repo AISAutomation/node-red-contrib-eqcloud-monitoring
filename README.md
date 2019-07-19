@@ -9,7 +9,7 @@ This node is the easiest way to connect your equipment to the EquipmentCloud® o
 
 ## Installation
 
-`npm install node-red-contrib-eqcloud-monitoring`
+`npm install @ais_automation/node-red-contrib-eqcloud-monitoring`
 
 ## Usage
 
