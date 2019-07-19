@@ -1,0 +1,63 @@
+{
+  "name": "node-red-contrib-eqcloud-monitoring",
+  "version": "1.0.0",
+  "node-red": {
+    "nodes": {
+      "Monitoring": "Monitoring.js"
+    }
+  },
+  "dependencies": {
+    "request": "^2.88.0",
+    "sqlite3": "^4.0.9"
+  },
+  "description": "Client for EquipmentCloud® Monitoring",
+  "license": "MIT",
+  "author": {
+    "name": "AIS Automation GmbH",
+    "email": "eqcloud-support@ais-automation.com",
+    "url": "https://eqcloud.ais-automation.com"
+  },
+  "repository": {
+    "type": "github",
+    "url": "https://github.com/AISAutomation/node-red-contrib-eqcloud-monitoring"
+  },
+  "keywords": [
+    "IoT",
+    "Equipment",
+    "Cloud",
+    "SEMI",
+    "client",
+    "AIS",
+    "AIS Automation",
+    "Single Source of Truth",
+    "EquipmentCloud",
+    "EquipmentCloud®",
+    "EquipmentHub",
+    "Monitoring",
+    "RampUp",
+    "Workflows",
+    "SoftwareCenter",
+    "Maintenance",
+    "OpenIssues",
+    "SpareParts",
+    "RemoteAssistance",
+    "KnowledgeBase",
+    "eDocs"
+  ],
+  "devDependencies": {
+    "node-red": "^0.20.6",
+    "node-red-node-test-helper": "^0.2.2",
+    "should": "^13.2.3",
+    "eslint": "^5.16.0",
+    "eslint-config-standard": "^12.0.0",
+    "eslint-plugin-import": "^2.17.3",
+    "eslint-plugin-node": "^9.1.0",
+    "eslint-plugin-promise": "^4.1.1",
+    "eslint-plugin-standard": "^4.0.0",
+    "mocha": "^6.1.4",
+    "mocha-junit-reporter": "^1.22.0"
+  },
+  "scripts": {
+    "test": "mocha --recursive 'test/*_spec.js' --exit"
+  }
+}
