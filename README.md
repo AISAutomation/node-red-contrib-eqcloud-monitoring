@@ -92,4 +92,4 @@ The node has two outputs. One for responses of the EquipmentCloud® and one for 
 
 ## LICENSE
 
-Licensed under the MIT License (MIT) License.
+Licensed under the MIT License (MIT).
