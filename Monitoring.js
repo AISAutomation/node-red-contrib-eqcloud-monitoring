@@ -205,8 +205,9 @@ module.exports = function (RED) {
             while (repeatReadingBuffer) {
                 var readStartDate = new Date();
 
-                node.debug("Reading...");
-                var data = await storage.getStorageData(config.maxItemsPerPackage);
+                node.debug("Reading...");                
+                var limit = config.maxItemsPerPackage;
+                var data = await storage.getStorageData(limit);
 
                 var itemCount = data.items.length;
                 node.debug("Read " + itemCount + " items from buffer");
@@ -256,11 +257,15 @@ module.exports = function (RED) {
                 var sendEndDate = new Date();
                 node.debug("Sending time " + ((sendEndDate - sendStartDate) / 1000).toFixed(3)) + "s";
 
+                // update internal item limit for each call with given limit from response
+                // but respect a max package size of 100000 items per call
+                // to keep a single call at a manageable size.
+                var newMaxItemsPerPackage = Math.min(response.body.result[0].max_allowed_items, 100000);
                 // if necessary override internal item limit for each call with given limit in response
-                if (response.body.result[0].max_allowed_items != config.maxItemsPerPackage) {
+                if (newMaxItemsPerPackage != config.maxItemsPerPackage) {
                     // Hint: to avoid race condition in this async method we have to await 
                     // for a seperate function to override the value
-                    await overrideMaxItemsPerPackage(response.body.result[0].max_allowed_items);
+                    await overrideMaxItemsPerPackage(newMaxItemsPerPackage);
                 }
                 // delete all processed items from storage 
                 // Hint: this includes the last processed item although it caused by an error. 
@@ -280,11 +285,11 @@ module.exports = function (RED) {
                 // if too many items has been send, retry to send data
                 // maxItemsPerPackage has been upated above to the new limit
                 if (response.statusCode == 413) {
-                    node.debug(response.body.result[0].message + "\nChanged limit to " + config.maxItemsPerPackage);
+                    node.debug(response.body.result[0].message + "\nChanged limit to " + newMaxItemsPerPackage);
                 }
                 // otherweise check for repeat reading buffer
                 // do not repeat when all sended data has been processed and max package size was not reached
-                else if (response.body.result[0].current_item_index + 1 == itemCount && itemCount < config.maxItemsPerPackage) {
+                else if (response.body.result[0].current_item_index + 1 == itemCount && itemCount < limit) {
                     repeatReadingBuffer = false;
                 }
             }
