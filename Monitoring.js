@@ -251,7 +251,16 @@ module.exports = function (RED) {
 
                 // send response to output
                 node.send({
-                    payload: response
+                    payload: { 
+                        statusCode: response.statusCode,
+                        body: response.body,
+                        headers: response.headers,
+                        request: {
+                            uri: response.request.uri,
+                            method: response.request.method,
+                            headers: response.request.headers,
+                        }
+                    }
                 });
 
                 var sendEndDate = new Date();
@@ -337,7 +346,16 @@ module.exports = function (RED) {
             // send response to output to make it accasable for user (for debug, etc.)
             if (e.response) {
                 node.send({
-                    payload: e.response
+                    payload: { 
+                        statusCode: e.response.statusCode,
+                        body: e.response.body,
+                        headers: e.response.headers,
+                        request: {
+                            uri: e.response.request.uri,
+                            method: e.response.request.method,
+                            headers: e.response.request.headers,
+                        }
+                    }
                 });
             }
 
