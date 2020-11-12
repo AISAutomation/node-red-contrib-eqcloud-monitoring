@@ -1,6 +1,6 @@
 {
   "name": "@ais_automation/node-red-contrib-eqcloud-monitoring",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "node-red": {
     "nodes": {
       "Monitoring": "Monitoring.js"
@@ -12,7 +12,7 @@
   },
   "description": "Client for EquipmentCloud® Monitoring",
   "license": "MIT",
-  "author": "AIS Automation GmbH <eqcloud-support@ais-automation.com> (https://eqcloud.ais-automation.com)",
+  "author": "Kontron AIS GmbH <eqcloud-support@kontron-ais.com> (https://eqcloud.kontron-ais.com)",
   "repository": {
     "type": "github",
     "url": "git+https://github.com/AISAutomation/node-red-contrib-eqcloud-monitoring.git"
@@ -26,6 +26,7 @@
     "client",
     "AIS",
     "AIS Automation",
+    "Kontron",
     "Single Source of Truth",
     "EquipmentCloud",
     "EquipmentCloud®",
@@ -39,7 +40,9 @@
     "SpareParts",
     "RemoteAssistance",
     "KnowledgeBase",
-    "eDocs"
+    "eDocs",
+    "Device",
+    "DeviceManagement"
   ],
   "devDependencies": {
     "node-red": "^0.20.6",

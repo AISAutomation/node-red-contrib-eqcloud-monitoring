@@ -1,9 +1,9 @@
 # node-red-contrib-eqcloud-monitoring
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-![logo](images/ais_logo.jpg?raw=true)
+![logo](images/eqcloud.png?raw=true)
 
-This node is the easiest way to connect your equipment to the EquipmentCloud® of AIS Automation Dresden GmbH for any Monitoring purposes. 
+This node is the easiest way to connect your equipment to the EquipmentCloud® of Kontron AIS GmbH for any Monitoring purposes. 
 
 ![node](images/node.PNG?raw=true)
 
@@ -42,48 +42,52 @@ When you have configured your Monitoring node correctly, the node will get a tok
 The input for the Monitoring node must be a message format based on the REST API of the EquipmentCloud®. The following JSON message is an example for such a message. Please note that you have to be ensure that the correct type for each item (alarm, event, etc.) is selected.
 ```
 {
-    "items":[
+    "items": [
         {
-            "type":1,
-            "id":"alarm1",
-            "timestamp":"2019-01-11T08:19:56Z",
-            "action":1
+            "type": 1,
+            "id": "alarm1",
+            "timestamp": "2019-01-11T08:19:56Z",
+            "action": 1,
+            "additional_values": [
+                "low speed",
+                1,
+                "5 m/h"
+            ]
         },
         {
-            "type":2,
-            "id":"event1",
-            "timestamp":"2019-01-11T06:38:29Z"
+            "type": 2,
+            "id": "event1",
+            "timestamp": "2019-01-11T06:38:29Z"
         },
         {
-            "type":3, 
-            "id":null,
-            "timestamp":"2019-01-11T06:38:37Z",
-            "count":1,
-            "quality":1
+            "type": 3,
+            "id": null,
+            "timestamp": "2019-01-11T06:38:37Z",
+            "count": 1,
+            "quality": 1
         },
         {
-            "type":4,
-            "id":"numeric_process_value1",
-            "timestamp":"2019-01-11T06:38:41Z",
-            "value":-1.3555
+            "type": 4,
+            "id": "numeric_process_value1",
+            "timestamp": "2019-01-11T06:38:41Z",
+            "value": -1.3555
         },
         {
-            "type":4,
-            "id":"string_process_value2",
-            "timestamp":"2019-01-11T06:38:41Z",
-            "value_string":"This is an example value"
+            "type": 4,
+            "id": "string_process_value2",
+            "timestamp": "2019-01-11T06:38:41Z",
+            "value_string": "This is an example value"
         },
         {
-            "type":4,
-            "id":"boolean_process_value3",
-            "timestamp":"2019-01-11T06:38:41Z",
-            "value_boolean":true
+            "type": 4,
+            "id": "boolean_process_value3",
+            "timestamp": "2019-01-11T06:38:41Z",
+            "value_boolean": true
         }
     ]
-} 
+}
 ```
-
-If you want to have more information regarding our REST API please have a look into our [documentation](https://eqcloud.ais-automation.com/i/eqcloud/doc/Rest_API.pdf "documentation").
+If you want to have more information regarding our REST API, please log in to your account and take a look at **Help Center / Help & Tips**.
 
 ### Output
 

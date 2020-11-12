@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2019, AIS Automation Dresden GmbH
+    Copyright 2020, Kontron AIS GmbH
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files(the "Software"), to deal in
@@ -26,7 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 const OAuthClient = require("./OAuthClient");
 const Storage = require("./Storage");
 
-module.exports = function (RED) {
+module.exports = function(RED) {
 
     const nodeStatus = {
         CONNECTED: "Connected",
@@ -58,10 +58,13 @@ module.exports = function (RED) {
         // check for all requierd parameters
         var node = this;
         var id = config.id;
-        var customerID = config.customerID;
-        var eqID = config.eqID;
+        var customerID = RED.util.evaluateNodeProperty(config.customerID, config.customerIDType, node);
+        var eqID = RED.util.evaluateNodeProperty(config.eqID, config.eqIDType, node);
+        var clientID = RED.util.evaluateNodeProperty(config.clientID, config.clientIDType, node);
+        var clientSecret = RED.util.evaluateNodeProperty(config.clientSecret, config.clientSecretType, node);
+        var clientCredentials = clientID && clientSecret ? Buffer.from(clientID + ":" + clientSecret).toString('base64') : null;
 
-        if (!(id && customerID && eqID && config.clientID && config.clientCredentials)) {
+        if (!(id && customerID && eqID && clientID && clientCredentials)) {
             handleException(new Error("Not all parameters set!"));
             return;
         }
@@ -80,19 +83,19 @@ module.exports = function (RED) {
         }
         // check for 'C' in customer order number
         else if (customerID.toUpperCase().startsWith("C")) {
-            hostAddress = "https://eqcloud.ais-automation.com/" + customerID;
+            hostAddress = "https://eqcloud.kontron-ais.com/" + customerID;
         } else {
-            hostAddress = "https://eqcloud.ais-automation.com/C" + customerID;
+            hostAddress = "https://eqcloud.kontron-ais.com/C" + customerID;
         }
 
         var tokenUrl = hostAddress + "/cloudconnect/oauth/token";
         var cloudUrl = hostAddress + "/cloudconnect/api/monitoring/v2/things/" + eqID;
         node.debug("Host address: " + cloudUrl);
 
-        var client = new OAuthClient(config.clientID, config.clientCredentials, tokenUrl);
+        var client = new OAuthClient(clientID, clientCredentials, tokenUrl);
 
         // set up buffer
-        var storage = new Storage(id, config.maxBufferSize);
+        var storage = new Storage(id, (RED.util.evaluateNodeProperty(config.maxBufferSize, config.maxBufferSizeType, node) || defaultSettings.maxBufferSize));
         var storageInitializationInProgress = false;
         var storageInitialized = false;
         async function initStorage() {
@@ -110,7 +113,7 @@ module.exports = function (RED) {
         initStorage();
 
         //Triggers if a new message comes to the node
-        node.on("input", async function (msg) {
+        node.on("input", async function(msg) {
 
             // check for items in message
             if (msg.payload.items) {
@@ -118,13 +121,13 @@ module.exports = function (RED) {
             }
         });
 
-        node.on("close", async function (removed, done) {
+        node.on("close", async function(removed, done) {
             // stop job to send data from buffer to cloud
             try {
                 clearTimeout(timer);
 
                 // wait until initialization has finished
-                while(storageInitializationInProgress){
+                while (storageInitializationInProgress) {
                     var waitPromise = new Promise((resolve, reject) => {
                         setTimeout(() => {
                             resolve(true);
@@ -150,7 +153,7 @@ module.exports = function (RED) {
             //Store data in buffer
             try {
                 // wait until initialization has finished
-                while(storageInitializationInProgress){
+                while (storageInitializationInProgress) {
                     var waitPromise = new Promise((resolve, reject) => {
                         setTimeout(() => {
                             resolve(true);
@@ -205,7 +208,7 @@ module.exports = function (RED) {
             while (repeatReadingBuffer) {
                 var readStartDate = new Date();
 
-                node.debug("Reading...");                
+                node.debug("Reading...");
                 var limit = config.maxItemsPerPackage;
                 var data = await storage.getStorageData(limit);
 
@@ -251,7 +254,7 @@ module.exports = function (RED) {
 
                 // send response to output
                 node.send({
-                    payload: { 
+                    payload: {
                         statusCode: response.statusCode,
                         body: response.body,
                         headers: response.headers,
@@ -346,7 +349,7 @@ module.exports = function (RED) {
             // send response to output to make it accasable for user (for debug, etc.)
             if (e.response) {
                 node.send({
-                    payload: { 
+                    payload: {
                         statusCode: e.response.statusCode,
                         body: e.response.body,
                         headers: e.response.headers,
@@ -380,7 +383,7 @@ module.exports = function (RED) {
                 e.message.includes("unable to open database file") ||
                 e.message.includes("SQLITE_MISUSE: Database is closed")) {
                 node.debug("Delete old storage file and retry to open database");
-                const func = async () => {
+                const func = async() => {
                     storageInitialized = false;
                     try {
                         await storage.close();
@@ -388,7 +391,7 @@ module.exports = function (RED) {
                         // does not matter
                     }
                     try {
-                        await storage.delete();                        
+                        await storage.delete();
                         storageInitializationInProgress = true;
                         await storage.initialize();
                         storageInitializationInProgress = false;
@@ -417,8 +420,7 @@ module.exports = function (RED) {
                 } catch (e) {
                     handleException(e);
                 }
-            }
-            else {
+            } else {
                 node.debug("Storage not initialized");
             }
 
@@ -428,13 +430,15 @@ module.exports = function (RED) {
             // set next cycle time
             // - balance drift
             // - note minimum of 1 second for next cycle, so there is no endless transmitting
-            var nextCycle = Math.max(config.cycleTime * 1000 - (jobEndDate - jobStartDate), 1000);
-            timer = setTimeout(async () => transmitData(), nextCycle);
+            var nextCycle = Math.max(
+                (RED.util.evaluateNodeProperty(config.cycleTime, config.cycleTimeType, node) || defaultSettings.cycleTime) *
+                1000 - (jobEndDate - jobStartDate), 1000);
+            timer = setTimeout(async() => transmitData(), nextCycle);
         }
 
         // inital timer        
         // - Authenticate always the first call, no matter if data was buffered or not
-        var timer = setTimeout(async () => {
+        var timer = setTimeout(async() => {
             try {
                 await client.authenticate();
                 // hint: if we came up to here, Statuscode is 200 
@@ -446,7 +450,8 @@ module.exports = function (RED) {
             } catch (e) {
                 handleException(e);
                 // retry authentication with next cycle
-                timer = setTimeout(() => transmitData(), config.cycleTime);
+                timer = setTimeout(() => transmitData(),
+                    (RED.util.evaluateNodeProperty(config.cycleTime, config.cycleTimeType, node) || defaultSettings.cycleTime));
             }
         }, 1000);
     }
