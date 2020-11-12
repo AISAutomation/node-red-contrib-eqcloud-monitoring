@@ -12,37 +12,61 @@
             },
             customerID: {
                 value: "",
-                required: true
+                required: true,
+                validate: RED.validators.typedInput('customerIDType')
+            },
+            customerIDType: {
+                value: "str"
             },
             eqID: {
                 value: "",
-                required: true
+                required: true,
+                validate: RED.validators.typedInput('eqIDType')
+            },
+            eqIDType: {
+                value: "str"
             },
             clientID: {
                 value: "",
-                required: true
+                required: true,
+                validate: RED.validators.typedInput('clientIDType')
+            },
+            clientIDType: {
+                value: "str"
             },
             clientSecret: {
                 value: "",
-                required: true
+                required: true,
+                validate: RED.validators.typedInput('clientSecretType')
             },
-            clientCredentials: {
-                value: "",
-                required: true
+            clientSecretType: {
+                value: "str"
             },
             cycleTime: {
                 value: 3600,
-                validate: function (v) {
-                    return v > 0;
+                validate: function(v) {
+                    var validator = RED.validators.typedInput('cycleTimeType');
+                    if (!validator(v)) return false;
+                    if ($("#node-input-cycleTime").typedInput('type') == 'num' && v < 1) return false;
+                    return true;
                 },
                 required: true
             },
+            cycleTimeType: {
+                value: "num"
+            },
             maxBufferSize: {
                 value: 100,
-                validate: function (v) {
-                    return v > 0;
+                validate: function(v) {
+                    var validator = RED.validators.typedInput('maxBufferSizeType');
+                    if (!validator(v)) return false;
+                    if ($("#node-input-maxBufferSize").typedInput('type') == 'num' && v <= 0) return false;
+                    return true;
                 },
                 required: true
+            },
+            maxBufferSizeType: {
+                value: "num"
             },
             /*
             maxItemsPerPackage: {
@@ -59,50 +83,82 @@
         inputs: 1,
         outputs: 2,
         icon: "equipmentcloud.png",
-        label: function () {
+        label: function() {
             return this.name || "Monitoring";
         },
         inputLabels: "Monitoring v2 Bulk Uploader",
         outputLabels: ["Response", "Error"],
-        oneditprepare: function () {
+        oneditprepare: function() {
 
+            $("#node-input-customerID").typedInput({
+                default: 'str',
+                typeField: $("#node-input-customerIDType"),
+                types: ["str", "env", "flow", "global"]
+            });
+            $("#node-input-eqID").typedInput({
+                default: 'str',
+                typeField: $("#node-input-eqIDType"),
+                types: ["str", "env", "flow", "global"]
+            });
+            $("#node-input-clientID").typedInput({
+                default: 'str',
+                typeField: $("#node-input-clientIDType"),
+                types: ["str", "env", "flow", "global"]
+            });
+            $("#node-input-clientSecret").typedInput({
+                default: 'str',
+                typeField: $("#node-input-clientSecretType"),
+                types: ["str", "env", "flow", "global"]
+            });
+            $("#node-input-cycleTime").typedInput({
+                default: 'num',
+                typeField: $("#node-input-cycleTimeType"),
+                types: ["num", "env", "flow", "global"]
+            });
+            $("#node-input-maxBufferSize").typedInput({
+                default: 'num',
+                typeField: $("#node-input-maxBufferSizeType"),
+                types: ["num", "env", "flow", "global"]
+            });
 
             var configObj = getThingsConfig();
             if (configObj != null) {
                 refreshThingSelectionList(configObj);
             }
 
-            $(".credentialInput").change(function () {
+            $(".credentialInput").change(function() {
                 calcCredentials();
             });
 
-            $("#node-input-inputTypeSelection").change(function () {
+            $("#node-input-inputTypeSelection").change(function() {
                 if (this.value === "file") {
                     $(".customInputField").hide();
                     $(".fileInputField").show();
-                    $(".credentialField").prop("disabled", true);
+                    $(".credentialField").next('div').find('input,button').prop("disabled", true);
                     $('#node-input-eqSelection').change();
                 } else if (this.value === "custom") {
                     $(".fileInputField").hide();
                     $(".customInputField").show();
-                    $(".credentialField").prop("disabled", false);
+                    $(".credentialField").next('div').find('input,button').prop("disabled", false);
                 }
             });
 
-
-
-            /*//-------------------------------
-             *  Events for the json-file reader 
-             */ //-------------------------------
-
+            // hide credentail field when it depends on environment variables
+            $("#node-input-clientID,#node-input-clientSecret").on('change', function(type, value) {
+                if ($("#node-input-clientID").typedInput('type') == 'env' || $("#node-input-clientSecret").typedInput('type') == 'env') {
+                    $(".clientCredentials").hide();
+                } else {
+                    $(".clientCredentials").show();
+                }
+            });
 
             //avoid issue when selecting the file with equal name not firing change event
-            $('#fileSelector').click(function () {
+            $('#fileSelector').click(function() {
                 //clean input value of file selector (no change event is fired)
                 this.value = null;
             });
 
-            $("#fileSelector").change(async function () {
+            $("#fileSelector").change(async function() {
                 readJsonFile(this.files[0], (json) => {
 
                     $('#node-input-thingsConfigJson').val(JSON.stringify(json));
@@ -122,28 +178,27 @@
 
 
             //Is fired when a new value is selected
-            $("#node-input-eqSelection").change(function () {
+            $("#node-input-eqSelection").change(function() {
                 var configObj = getThingsConfig();
                 if (configObj) {
-                    $('#node-input-customerID').val(configObj.customer);
+                    $('.credentialField').typedInput('type', 'str');
+                    $('#node-input-customerID').typedInput('value', configObj.customer);
+
                     var item = configObj.things.find(x => x.id === this.value);
                     if (item) {
-                        $('#node-input-eqID').val(item.id);
-                        $('#node-input-clientID').val(item.clientid);
-                        $('#node-input-clientSecret').val(item.clientsecret)
-                        $('#node-input-clientCredentials').val(item.clientcredentialsbase64);
+                        $('#node-input-eqID').typedInput('value', item.id);
+                        $('#node-input-clientID').typedInput('value', item.clientid);
+                        $('#node-input-clientSecret').typedInput('value', item.clientsecret)
                     } else {
-                        $('#node-input-eqID').val(null);
-                        $('#node-input-clientID').val(null);
-                        $('#node-input-clientSecret').val(null)
-                        $('#node-input-clientCredentials').val(null);
-
+                        $('#node-input-eqID').typedInput('value', null);
+                        $('#node-input-clientID').typedInput('value', null);
+                        $('#node-input-clientSecret').typedInput('value', null);
                     }
                 }
             });
         },
 
-        oneditsave: function () {
+        oneditsave: function() {
 
         }
     });
@@ -154,8 +209,8 @@
 
 
     function calcCredentials() {
-        var clientID = $("#node-input-clientID").val();
-        var clientSecret = $("#node-input-clientSecret").val();
+        var clientID = $("#node-input-clientID").typedInput('value');
+        var clientSecret = $("#node-input-clientSecret").typedInput('value');
         var credentials = clientID && clientSecret ? btoa(clientID + ":" + clientSecret) : null;
         $("#node-input-clientCredentials").val(credentials);
     }
@@ -191,15 +246,20 @@
 
     function refreshThingSelectionList(configObj) {
         $("#node-input-eqSelection").empty();
-        configObj.things.forEach(function (item, index) {
+        configObj.things.forEach(function(item, index) {
             $("#node-input-eqSelection").append(new Option(item.id, item.id));
         });
         //Write back the last selected value of EQ
-        $('#node-input-eqSelection').val($("#node-input-eqID").val());
+        $('#node-input-eqSelection').val($("#node-input-eqID").typedInput('value'));
     };
 </script>
 
 <script type="text/x-red" data-template-name="Monitoring">
+    <style type="text/css" title="text/css" media="screen">
+        .red-ui-typedInput-container {
+            width: 70% !important;
+        }
+    </style>
     <div class="form-row">
         <label for="node-input-name"><i class="icon-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
@@ -219,6 +279,7 @@
         <label for="node-input-customerID"><i class="fa fa-university"></i> Customer ID</label>
         <input type="text" id="node-input-customerID" class="credentialField" placeholder="1234567 or C123...">
     </div>
+    <input type="hidden" id="node-input-customerIDType">
     <div class="form-row fileInputField hidden">
         <label for="node-input-eqSelection"><i class="fa fa-cog"></i> Equipment</label>
         <select id="node-input-eqSelection" style="width: 70%;">
@@ -226,106 +287,110 @@
     </div>
     <div class="form-row customInputField hidden">
         <label for="node-input-eqID"><i class="fa fa-cog"></i> Equipment ID</label>
-        <input type="text" id="node-input-eqID" placeholder="Equipment ID">
+        <input type="text" id="node-input-eqID" class="credentialField" placeholder="Equipment ID">
         </select>
     </div>
+    <input type="hidden" id="node-input-eqIDType">
     <div class="form-row">
         <label for="node-input-clientID"><i class="fa fa-user"></i> Client ID</label>
         <input type="text" id="node-input-clientID" class="credentialInput credentialField" placeholder="Client ID">
     </div>
+    <input type="hidden" id="node-input-clientIDType">
     <div class="form-row">
         <label for="node-input-clientSecret"><i class="fa fa-key"></i> Client Secret</label>
         <input type="text" id="node-input-clientSecret" class="credentialInput credentialField" placeholder="Client Secret">
     </div>
-    <div class="form-row">
+    <input type="hidden" id="node-input-clientSecretType">
+    <div class="form-row clientCredentials">
         <label for="node-input-clientCredentials"><i class="fa fa-plug"></i> Client Credentials</label>
         <input type="text" id="node-input-clientCredentials" placeholder="Credentials" disabled>
     </div>
     <div class="form-row">
         <label for="node-input-cycleTime"><i class="fa fa-clock-o"></i></i> Cycle Time [s]</label>
-        <input type="number" id="node-input-cycleTime" placeholder="" min="1" step="60">
+        <input type="text" id="node-input-cycleTime" placeholder="" min="1" step="60">
     </div>
+    <input type="hidden" id="node-input-cycleTimeType">
     <div class="form-row">
         <label for="node-input-maxBufferSize"><i class="fa fa-database"></i></i> Max. Buffer Size [MB]</label>
         <input type="text" id="node-input-maxBufferSize" placeholder="">
     </div>
+    <input type="hidden" id="node-input-maxBufferSizeType">
     <!-- <div class="form-row">
         <label for="node-input-maxItemsPerPackage"><i class="fa fa-cube"></i></i> Max. Number of Items per Package</label>
         <input type="text" id="node-input-maxItemsPerPackage" placeholder="">
     </div> -->
-
     <input type="hidden" id="node-input-thingsConfigJson" />
 </script>
 
 <script type="text/x-red" data-help-name="Monitoring">
     <p>
-        This node is the easiest way to connect your equipment to the EquipmentCloud<sup>&reg;</sup> of <font color="#ff0000">AIS Automation Dresden GmbH</font> for any Monitoring purposes.
-        The following config parameters can bet set in our Monitoring Node:<br><br>
-        <strong>Name</strong><br>
-        Give the node an individual name (e.g. EquipmentName)<br><br>
-        <strong>Authentication</strong><br>
-        There are 2 different ways for adding the Authentication settings into the node.<br>The first one is "Custom": You have to login into your EquipmentCloud<sup>&reg;</sup>, choose "Equipment Configuration" and "Equipment". 
-        In the list of available Equipments you will find the REST Service icon behind each equipment. Now choose your equipment and press the REST Service icon for all REST API details. 
-        Now you have to copy all values into the relevant input fields.<br>
-        The second option is "File": You have to login into your EquipmentCloud<sup>&reg;</sup>, choose "Equipment Configuration" and "Equipment". In the right top corner of the Equipment list, you will find "Download
-         Rest Configuration". A JSON file will be downloaded. Now you can select the downloaded file at the parameter "<strong>Json config</strong>". After the upload you have to select the target Equipment from the Dropdown 
-         field at parameter "<strong>Equipment</strong>".<br><br>
-         <strong>Cycle Time</strong><br>
-         This parameters sets the interval for sending values to the EquipmentCloud®. Incoming messages will be stored inside a buffer until the next interval. When the messages are send successfully to the EquipmentCloud® the buffer will be cleared.<br><br>  
-         <strong>Max. Buffer Size</strong><br>
-        You can set a maximum buffer size for storing the messages until the next cycle. If the maximum buffer is reached, older messages will be deleted and new messages will be stored.<br><br>
-        When you have configured your Monitoring node correctly, the node will get a token and will show this as a green point under the node in your flow.<br>
+        This node is the easiest way to connect your equipment to the EquipmentCloud<sup>&reg;</sup> of
+        <font color="#ff0000">Kontron AIS GmbH</font> for any Monitoring purposes. The following config parameters can bet set in our Monitoring Node:<br><br>
+        <strong>Name</strong><br> Give the node an individual name (e.g. EquipmentName)<br><br>
+        <strong>Authentication</strong><br> There are 2 different ways for adding the Authentication settings into the node.<br>The first one is "Custom": You have to login into your EquipmentCloud<sup>&reg;</sup>, choose "Equipment Configuration" and
+        "Equipment". In the list of available Equipments you will find the REST Service icon behind each equipment. Now choose your equipment and press the REST Service icon for all REST API details. Now you have to copy all values into the relevant input
+        fields.
+        <br> The second option is "File": You have to login into your EquipmentCloud<sup>&reg;</sup>, choose "Equipment Configuration" and "Equipment". In the right top corner of the Equipment list, you will find "Download Rest Configuration". A JSON
+        file will be downloaded. Now you can select the downloaded file at the parameter "<strong>Json config</strong>". After the upload you have to select the target Equipment from the Dropdown field at parameter "<strong>Equipment</strong>".<br><br>
+        <strong>Cycle Time</strong><br> This parameters sets the interval for sending values to the EquipmentCloud®. Incoming messages will be stored inside a buffer until the next interval. When the messages are send successfully to the EquipmentCloud®
+        the buffer will be cleared.<br><br>
+        <strong>Max. Buffer Size</strong><br> You can set a maximum buffer size for storing the messages until the next cycle. If the maximum buffer is reached, older messages will be deleted and new messages will be stored.<br><br> When you have configured
+        your Monitoring node correctly, the node will get a token and will show this as a green point under the node in your flow.<br>
     </p>
     <h3><strong>Node Input</strong></h3>
     <p>
-        The input for the Monitoring node must be a message format based on the REST API of the EquipmentCloud®. The following JSON message is an example for such a message. Please note that you have to be
-        ensure that the correct type for each item (alarm, event, etc.) is selected.
+        The input for the Monitoring node must be a message format based on the REST API of the EquipmentCloud®. The following JSON message is an example for such a message. Please note that you have to be ensure that the correct type for each item (alarm, event,
+        etc.) is selected.
         <pre>
 {
-    "items":[
+    "items": [
         {
-            "type":1,
-            "id":"alarm1",
-            "timestamp":"2019-01-11T08:19:56Z",
-            "action":1
+            "type": 1,
+            "id": "alarm1",
+            "timestamp": "2019-01-11T08:19:56Z",
+            "action": 1,
+            "additional_values": [
+                "low speed",
+                1,
+                "5 m/h"
+            ]
         },
         {
-            "type":2,
-            "id":"event1",
-            "timestamp":"2019-01-11T06:38:29Z"
+            "type": 2,
+            "id": "event1",
+            "timestamp": "2019-01-11T06:38:29Z"
         },
         {
-            "type":3, 
-            "id":null,
-            "timestamp":"2019-01-11T06:38:37Z",
-            "count":1,
-            "quality":1
+            "type": 3,
+            "id": null,
+            "timestamp": "2019-01-11T06:38:37Z",
+            "count": 1,
+            "quality": 1
         },
         {
-            "type":4,
-            "id":"numeric_process_value1",
-            "timestamp":"2019-01-11T06:38:41Z",
-            "value":-1.3555
+            "type": 4,
+            "id": "numeric_process_value1",
+            "timestamp": "2019-01-11T06:38:41Z",
+            "value": -1.3555
         },
         {
-            "type":4,
-            "id":"string_process_value2",
-            "timestamp":"2019-01-11T06:38:41Z",
-            "value_string":"This is an example value"
+            "type": 4,
+            "id": "string_process_value2",
+            "timestamp": "2019-01-11T06:38:41Z",
+            "value_string": "This is an example value"
         },
         {
-            "type":4,
-            "id":"boolean_process_value3",
-            "timestamp":"2019-01-11T06:38:41Z",
-            "value_boolean":true
+            "type": 4,
+            "id": "boolean_process_value3",
+            "timestamp": "2019-01-11T06:38:41Z",
+            "value_boolean": true
         }
     ]
-} </pre>
-    <br>  
+}</pre>
+        <br>
     </p>
     <h3><strong>More information</strong></h3>
-        <p>
-            If you want to have more information regarding our REST API please have a look into our <a href="https://eqcloud.ais-automation.com/i/eqcloud/doc/Rest_API.pdf">documentation</a>.
-            
-        </p>
- </script>
+    <p>
+        If you want to have more information regarding our REST API, please log in to your account and take a look at <b>Help Center / Help & Tips</b>.
+    </p>
+</script>
