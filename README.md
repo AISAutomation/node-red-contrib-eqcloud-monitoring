@@ -1,11 +1,11 @@
 # node-red-contrib-eqcloud-monitoring
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-![logo](images/eqcloud.png?raw=true)
+[![logo](images/eqcloud.png?raw=true)](https://equipmentcloud.de/)
 
-This node is the easiest way to connect your equipment to the EquipmentCloud® of Kontron AIS GmbH for any Monitoring purposes. 
+This [node](https://flows.nodered.org/node/@ais_automation/node-red-contrib-eqcloud-monitoring) is the easiest way to connect your equipment to the [EquipmentCloud®](https://equipmentcloud.de/) of Kontron AIS GmbH for any Monitoring purposes. 
 
-![node](images/node.PNG?raw=true)
+[![node](images/node.PNG?raw=true)](https://flows.nodered.org/node/@ais_automation/node-red-contrib-eqcloud-monitoring)
 
 ## Installation
 
