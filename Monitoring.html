@@ -337,7 +337,7 @@
         <strong>Max. Buffer Size</strong><br> You can set a maximum buffer size for storing the messages until the next cycle. If the maximum buffer is reached, older messages will be deleted and new messages will be stored.<br><br> When you have configured
         your Monitoring node correctly, the node will get a token and will show this as a green point under the node in your flow.<br>
     </p>
-    <h3><strong>Node Input</strong></h3>
+    <h3><strong>Monitoring Data</strong></h3>
     <p>
         The input for the Monitoring node must be a message format based on the REST API of the EquipmentCloud®. The following JSON message is an example for such a message. Please note that you have to be ensure that the correct type for each item (alarm, event,
         etc.) is selected.
@@ -389,8 +389,114 @@
 }</pre>
         <br>
     </p>
+    <h3><strong>Equipment Configuration</strong></h3>
+    <p>
+        You can also dynamically upload the type configuration of the equipment. This allows, e.g., to create an alarm in the EquipmentCloud®, which has not been configured yet. Note that this may affect other equipment of the same type.
+        <pre>
+{
+    "states": [
+        {
+        "name": "Running"
+        },
+        {
+        "name": "Stopped"
+        }
+    ],
+    "events": [
+        {
+        "id": "start",
+        "name": "Start button pressed"
+        },
+        {
+        "id": "stop",
+        "name": "Stop button pressed"
+        }
+    ],
+    "statemodels": [
+        {
+        "event": {
+            "id": "start"
+        },
+        "state": {
+            "name": "Running"
+        },
+        "standardState": {
+            "id": "prd"
+        }
+        },
+        {
+        "event": {
+            "id": "stop"
+        },
+        "state": {
+            "name": "Stopped"
+        },
+        "standardState": {
+            "id": "sdt"
+        }
+        }
+    ],
+    "alarmclasses": [
+        {
+        "name": "High Priority",
+        "color": "#FF0000"
+        },
+        {
+        "name": "Low Priority",
+        "color": "#C7BF20"
+        }
+    ],
+    "alarms": [
+        {
+        "id": "dooropen",
+        "text": "Door still open",
+        "type": "Error",
+        "class": {
+            "name": "High Priority"
+        }
+        },
+        {
+        "id": "empty",
+        "text": "Mashine is still empty",
+        "type": "Warning",
+        "class": {
+            "name": "Low Priority"
+        }
+        }
+    ],
+    "processvalues": [
+        {
+        "id": "rpm",
+        "name": "RPM",
+        "type": "double",
+        "unit": "U/min",
+        "color": "#45C78D"
+        },
+        {
+        "id": "temperature",
+        "name": "Temperature",
+        "type": "double",
+        "unit": "°C",
+        "color": "#F21352"
+        }
+    ],
+    "oeeparameters": [
+        {
+        "product": "Colourful Clothes",
+        "unitsPerHour": 90,
+        "productionFactor": 1
+        },
+        {
+        "product": null,
+        "unitsPerHour": 50,
+        "productionFactor": 1
+        }
+    ]
+}</pre>
+        <br>
+    </p>
     <h3><strong>More information</strong></h3>
     <p>
-        If you want to have more information regarding our REST API, please log in to your account and take a look at <b>Help Center / Help & Tips</b>.
+        If you want to have more information regarding our REST API, please log in to your account and take a look at:<br><b>Help Center / Help & Tips / RESTful Service API Explorer / Monitoring API 2.0</b>
     </p>
 </script>

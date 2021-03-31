@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2020, Kontron AIS GmbH
+    Copyright 2021, Kontron AIS GmbH
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files(the "Software"), to deal in
@@ -26,7 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 const OAuthClient = require("./OAuthClient");
 const Storage = require("./Storage");
 
-module.exports = function(RED) {
+module.exports = function (RED) {
 
     const nodeStatus = {
         CONNECTED: "Connected",
@@ -36,8 +36,16 @@ module.exports = function(RED) {
         ERROR: "Error"
     };
 
-    function MonitoringNode(config) {
+    const configCategories = [
+        "alarmclasses",
+        "alarms",
+        "states",
+        "events",
+        "statemodels",
+        "processvalues",
+        "oeeparameters"];
 
+    function MonitoringNode(config) {
         /* When new parameters are introduced, they are always null when upgrading existing nodes.
            The default setting of the GUI/HTML only applies to new nodes, 
            therefore the uninitialized parameters must be handled.
@@ -62,7 +70,7 @@ module.exports = function(RED) {
         var eqID = RED.util.evaluateNodeProperty(config.eqID, config.eqIDType, node);
         var clientID = RED.util.evaluateNodeProperty(config.clientID, config.clientIDType, node);
         var clientSecret = RED.util.evaluateNodeProperty(config.clientSecret, config.clientSecretType, node);
-        var clientCredentials = clientID && clientSecret ? Buffer.from(clientID + ":" + clientSecret).toString('base64') : null;
+        var clientCredentials = clientID && clientSecret ? Buffer.from(clientID + ":" + clientSecret).toString("base64") : null;
 
         if (!(id && customerID && eqID && clientID && clientCredentials)) {
             handleException(new Error("Not all parameters set!"));
@@ -90,6 +98,7 @@ module.exports = function(RED) {
 
         var tokenUrl = hostAddress + "/cloudconnect/oauth/token";
         var cloudUrl = hostAddress + "/cloudconnect/api/monitoring/v2/things/" + eqID;
+
         node.debug("Host address: " + cloudUrl);
 
         var client = new OAuthClient(clientID, clientCredentials, tokenUrl);
@@ -110,31 +119,41 @@ module.exports = function(RED) {
                 handleException(e);
             }
         }
+        async function waitForStorage() {
+            // wait until initialization has finished
+            while (storageInitializationInProgress) {
+                var waitPromise = new Promise((resolve) => {
+                    setTimeout(() => {
+                        resolve(true);
+                    }, 100);
+                });
+                await Promise.all([waitPromise]);
+            }
+        }
         initStorage();
 
         //Triggers if a new message comes to the node
-        node.on("input", async function(msg) {
+        node.on("input", async function (msg) {
+            //Check for config elements in message and identify (alarms, products, etc.)
+            for (const category of configCategories) {
+                if (msg.payload.hasOwnProperty(category)) {
+                    await handleConfigData(
+                        msg.payload[category],
+                        category);
+                }
+            }
 
-            // check for items in message
-            if (msg.payload.items) {
+            //Monitoring messages
+            if (msg.payload.hasOwnProperty("items")) {
                 await handleData(msg.payload.items);
             }
         });
 
-        node.on("close", async function(removed, done) {
+        node.on("close", async function (removed, done) {
             // stop job to send data from buffer to cloud
             try {
                 clearTimeout(timer);
-
-                // wait until initialization has finished
-                while (storageInitializationInProgress) {
-                    var waitPromise = new Promise((resolve, reject) => {
-                        setTimeout(() => {
-                            resolve(true);
-                        }, 100);
-                    });
-                    await Promise.all([waitPromise]);
-                }
+                await waitForStorage();
                 // save close storage
                 await storage.close();
 
@@ -149,18 +168,21 @@ module.exports = function(RED) {
             done();
         });
 
+        async function handleConfigData(items, category) {
+            //Store data in buffer
+            try {
+                await waitForStorage();
+                await storage.storeConfigData({ items: items }, category);
+
+            } catch (e) {
+                handleException(e);
+            }
+        }
+
         async function handleData(items) {
             //Store data in buffer
             try {
-                // wait until initialization has finished
-                while (storageInitializationInProgress) {
-                    var waitPromise = new Promise((resolve, reject) => {
-                        setTimeout(() => {
-                            resolve(true);
-                        }, 100);
-                    });
-                    await Promise.all([waitPromise]);
-                }
+                await waitForStorage();
                 await storage.storeData({
                     items: items
                 });
@@ -168,6 +190,7 @@ module.exports = function(RED) {
                 handleException(e);
             }
         }
+
         async function setNodeStatus(status) {
 
             //do nothing when status not changed
@@ -199,6 +222,70 @@ module.exports = function(RED) {
                         text: status
                     });
                     break;
+            }
+        }
+
+        async function transferringConfigDataToCloud() {
+            var data;
+            // Hint: its not allowed to call any other async function between
+            // last call of loading config data and first call loading history data (transferringDataToCloud/storage.getStorageData).
+            // Otherwise the loss of data is possible.             
+            while ((data = await storage.getStorageConfigData()).categories.length > 0) {
+                //sort sending categories by priority
+                data.categories.sort(function (a, b) { return configCategories.indexOf(a.category) - configCategories.indexOf(b.category); });
+
+                // set node status to sending
+                setNodeStatus(nodeStatus.SENDING);
+
+                for (const cat of data.categories) {
+
+                    node.debug("Config: add " + cat.items.length + " " + cat.category);
+
+                    var response = await client.sendMessage(
+                        { "items": cat.items },
+                        cloudUrl + "/configuration/" + cat.category);
+
+                    switch (response.statusCode) {
+                        case 200: // Ok
+                        case 202: // Accepted
+                        case 412: // Procondition failed
+                        case 413: // Payload to large 
+                            break; // accept these statuscodes
+                        default: // otherwise there is an error
+                            throw {
+                                response: response
+                            };
+                    }
+
+                    //send response to output
+                    node.send({
+                        payload: {
+                            statusCode: response.statusCode,
+                            body: response.body,
+                            headers: response.headers,
+                            request: {
+                                uri: response.request.uri,
+                                method: response.request.method,
+                                headers: response.request.headers,
+                            }
+                        }
+                    });
+
+                    // on Precondition fail, do not handle this as an exception
+                    // but inform user about the error
+                    if (response.statusCode == 412) {
+                        var errorOutput = new Error(response.body.result[0].message + "\nEnable \"Force Bulk Upload\" for this Equipment to ignore this error.");
+                        node.error(errorOutput);
+                        node.send([null, {
+                            payload: errorOutput
+                        }]);
+                    }
+                }
+
+                // delete all items processed from storage
+                // Hint: this includes all items causing an error. 
+                // This prevents queue processing from being blocked by a single error.
+                await storage.deleteConfigData(data.firstIndex, data.lastIndex);
             }
         }
 
@@ -375,15 +462,15 @@ module.exports = function(RED) {
                 }]);
             }
 
-            //broken storge file?
-            if (e.message == "Database file corrupted" ||
+            //broken storge file?            
+            if (e.message && (e.message == "Database file corrupted" ||
                 e.message.includes("file is not a database") ||
                 e.message.includes("UNIQUE constraint failed") ||
                 e.message.includes("Unexpected string in JSON") ||
                 e.message.includes("unable to open database file") ||
-                e.message.includes("SQLITE_MISUSE: Database is closed")) {
+                e.message.includes("SQLITE_MISUSE: Database is closed"))) {
                 node.debug("Delete old storage file and retry to open database");
-                const func = async() => {
+                const func = async () => {
                     storageInitialized = false;
                     try {
                         await storage.close();
@@ -416,6 +503,7 @@ module.exports = function(RED) {
             node.debug("Start Job sending Data to Cloud");
             if (storageInitialized) {
                 try {
+                    await transferringConfigDataToCloud();
                     await transferringDataToCloud();
                 } catch (e) {
                     handleException(e);
@@ -433,12 +521,12 @@ module.exports = function(RED) {
             var nextCycle = Math.max(
                 (RED.util.evaluateNodeProperty(config.cycleTime, config.cycleTimeType, node) || defaultSettings.cycleTime) *
                 1000 - (jobEndDate - jobStartDate), 1000);
-            timer = setTimeout(async() => transmitData(), nextCycle);
+            timer = setTimeout(async () => transmitData(), nextCycle);
         }
 
         // inital timer        
         // - Authenticate always the first call, no matter if data was buffered or not
-        var timer = setTimeout(async() => {
+        var timer = setTimeout(async () => {
             try {
                 await client.authenticate();
                 // hint: if we came up to here, Statuscode is 200 

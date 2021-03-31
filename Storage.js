@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2020, Kontron AIS GmbH
+    Copyright 2021, Kontron AIS GmbH
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files(the "Software"), to deal in
@@ -59,7 +59,7 @@ module.exports = class Storage {
         // init database:
         this.db = await this._getDatabase(this.filename);
         // create table
-        await this._createTable();
+        await this._createTables();
         // free empty file space to shrink file
         // Hint: row IDs are reset starting with 1        
         await this.wrapRunPromise("VACUUM;");
@@ -70,13 +70,14 @@ module.exports = class Storage {
         this.timer = setTimeout(this._housekeeperJob.bind(null, this), this.housekeeperInterval);
     }
 
-    async _createTable() {
+    async _createTables() {
         // drop messages table without specific id column (deprecated)
         var tableDef = await this._getTableDefinition("messages");
         if (tableDef && !tableDef.sql.includes("id INTEGER")) {
             await this.wrapRunPromise("DROP TABLE messages");
         }
         await this.wrapRunPromise("CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY ASC, data Text)");
+        await this.wrapRunPromise("CREATE TABLE IF NOT EXISTS configMessages (id INTEGER PRIMARY KEY AUTOINCREMENT, category Text, data Text )");
     }
 
     _getTableDefinition(tablename) {
@@ -93,10 +94,10 @@ module.exports = class Storage {
         });
     }
 
-    getStorageDataCount() {
+    _getRowCount(tablename) {
         var db = this.db;
         return new Promise((resolve, reject) => {
-            db.get("SELECT COUNT(id) as c FROM messages", [], (err, row) => {
+            db.get("SELECT COUNT(id) as c FROM " + tablename, [], (err, row) => {
                 //Errorhandling
                 if (err) {
                     return reject(err);
@@ -104,6 +105,14 @@ module.exports = class Storage {
                 return resolve(row.c);
             });
         });
+    }
+
+    getStorageDataCount() {
+        return this._getRowCount("messages");
+    }
+
+    getStorageConfigDataCount() {
+        return this._getRowCount("configMessages");
     }
 
     getStorageData(limit) {
@@ -129,7 +138,7 @@ module.exports = class Storage {
                     return reject(e);
                 }
 
-            }, (err, count) => {
+            }, (err) => {
                 if (err) {
                     return reject(err);
                 }
@@ -144,7 +153,55 @@ module.exports = class Storage {
         });
     }
 
+    getStorageConfigData() {
+        var db = this.db;
+
+        return new Promise((resolve, reject) => {
+            var dataArray = [];
+            var firstIndex;
+            var lastIndex;
+
+            // tight packed config data
+            db.each("SELECT category, MIN(id) AS min_id, MAX(id) AS max_id, '[' || group_concat(data, ',') || ']' as dataConcat FROM configMessages GROUP BY category;", (err, row) => {
+                //Errorhandling
+                if (err) {
+                    return reject(err);
+                }
+                try {
+                    dataArray.push({
+                        items: JSON.parse(row.dataConcat),
+                        category: row.category
+                    });
+                    // get least / greatest id of all groups
+                    if (!firstIndex || firstIndex > row.min_id) {
+                        firstIndex = row.min_id;
+                    }
+                    if (!lastIndex || lastIndex < row.max_id) {
+                        lastIndex = row.max_id;
+                    }
+
+                } catch (e) {
+                    return reject(e);
+                }
+
+            }, (err) => {
+                if (err) {
+                    return reject(err);
+                }
+
+                const dataWithInformation = {
+                    categories: dataArray,
+                    firstIndex: firstIndex,
+                    lastIndex: lastIndex
+                };
+
+                return resolve(dataWithInformation);
+            });
+        });
+    }
+
     async deleteAllData() {
+        await this.wrapRunPromise("DELETE FROM configMessages");
         await this.wrapRunPromise("DELETE FROM messages");
         // increment data action counter for swap transaction job
         this.dataActionCounter++;
@@ -159,19 +216,36 @@ module.exports = class Storage {
         this.dataActionCounter++;
     }
 
-    _storChunkData(chunk) {
+    async deleteConfigData(start, end) {
+        await this.wrapRunPromise("DELETE FROM configMessages WHERE id BETWEEN $start and $end", {
+            $start: start,
+            $end: end
+        });
+        // increment data action counter for swap transaction job
+        this.dataActionCounter++;
+    }
+
+    _storeChunkData(tablename, chunk, additionalValues = []) {
         var db = this.db;
         return new Promise((resolve, reject) => {
             db.serialize(() => {
                 try {
                     var jsons = [];
-                    var sql = "INSERT INTO messages(data) VALUES (";
+                    var sql = "INSERT INTO " + tablename + "(data";
+                    for (var addVal of additionalValues) {
+                        sql += ", " + addVal.column;
+                    }
+                    sql += ") VALUES (?";
                     for (var i = 0; i < chunk.length; i++) {
                         jsons.push(JSON.stringify(chunk[i]));
-                        sql += "?),(";
+                        for (var addVal2 of additionalValues) {
+                            sql += ",?";
+                            jsons.push(addVal2.value);
+                        }
+                        sql += "),(?";
                     }
 
-                    sql = sql.substring(0, sql.length - 2);
+                    sql = sql.substring(0, sql.length - 3);
                     var statement = db.prepare(sql);
                     statement.run(jsons, (err) => {
                         if (err) {
@@ -191,7 +265,7 @@ module.exports = class Storage {
         });
     }
 
-    async storeData(data) {
+    async _storeDataInChunks(tablename, data, additionalValues = []) {
         // split array in chunks
         const chunksize = 100;
         var chunks = [];
@@ -204,10 +278,18 @@ module.exports = class Storage {
             });
         }
         for (i = 0; i < chunks.length; i++) {
-            await this._storChunkData(chunks[i].items);
+            await this._storeChunkData(tablename, chunks[i].items, additionalValues);
             // increment data action counter for swap transaction job
             this.dataActionCounter++;
         }
+    }
+
+    async storeData(data) {
+        await this._storeDataInChunks("messages", data);
+    }
+
+    async storeConfigData(data, category) {
+        await this._storeDataInChunks("configMessages", data, [{ column: "category", value: category }]);
     }
 
     _closeDatabase() {
