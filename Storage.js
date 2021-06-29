@@ -31,14 +31,32 @@ module.exports = class Storage {
         and chaining calls are not working with instance fields in classes
     */
 
-    constructor(id, maxfileSize) {
+    // Sort priority for items with equal timestamps
+    static PriorityMode = {
+        FIFO: 0, // first in, first out (inserting sortorder)
+        EventsFirst: 1, // events (state changes) before alarms, units, etc.
+        EventsLast: 2 // events (state changes) after alarms, units, etc.
+    };
+
+    constructor(id, maxfileSize = 100, delay = 0, priorityMode = Storage.PriorityMode.FIFO) {
         this.id = id;
         this.db = null;
         this.filename = id + ".db";
         // file watcher settings:
         this.housekeeperInterval = 10000;
-        this.maxfileSize = (maxfileSize || 100) * 1024 * 1024; // Size in MB
+        this.maxfileSize = maxfileSize * 1024 * 1024; // Size in MB
         this.cleanupFactor = 0.05;
+        this.delay = delay * 1000 / 86400000;
+        switch (priorityMode) {
+            case Storage.PriorityMode.EventsFirst:
+                this.orderColumn = "is_event DESC, id";
+                break;
+            case Storage.PriorityMode.EventsLast: this.orderColumn = "is_event ASC, id";
+                break;
+            default:
+                this.orderColumn = "id";
+                break;
+        }
     }
 
     _getDatabase(filename) {
@@ -71,13 +89,28 @@ module.exports = class Storage {
     }
 
     async _createTables() {
-        // drop messages table without specific id column (deprecated)
+        // upgrade <= v1.1: drop messages table without specific id column (deprecated)
         var tableDef = await this._getTableDefinition("messages");
         if (tableDef && !tableDef.sql.includes("id INTEGER")) {
             await this.wrapRunPromise("DROP TABLE messages");
         }
-        await this.wrapRunPromise("CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY ASC, data Text)");
+        // upgrade <= v1.2:
+        if (tableDef && !tableDef.sql.includes("timestamp REAL") && !tableDef.sql.includes("is_event INTEGER")) {
+            // add missing columns
+            await this.wrapRunPromise("ALTER TABLE messages ADD COLUMN timestamp REAL");
+            await this.wrapRunPromise("ALTER TABLE messages ADD COLUMN is_event INTEGER");
+            // migrate data
+            await this.wrapRunPromise("UPDATE messages SET "
+                + "timestamp = julianday(json_extract(data, '$.timestamp'), 'utc'), "
+                + "is_event = CASE WHEN json_extract(data, '$.type') = 2 THEN 1 ELSE 0 END;");
+        }
+        // initial: create teables
+        await this.wrapRunPromise("CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY ASC, timestamp REAL, is_event INTEGER, data Text)");
         await this.wrapRunPromise("CREATE TABLE IF NOT EXISTS configMessages (id INTEGER PRIMARY KEY AUTOINCREMENT, category Text, data Text )");
+        // initial: create index
+        await this.wrapRunPromise("CREATE INDEX IF NOT EXISTS idx_messages_events_first ON messages (timestamp, is_event DESC, id)");
+        await this.wrapRunPromise("CREATE INDEX IF NOT EXISTS idx_messages_events_last ON messages (timestamp, is_event ASC, id)");
+        await this.wrapRunPromise("CREATE INDEX IF NOT EXISTS idx_messages_fifo ON messages (timestamp, id)");
     }
 
     _getTableDefinition(tablename) {
@@ -119,37 +152,50 @@ module.exports = class Storage {
         var db = this.db;
 
         return new Promise((resolve, reject) => {
-            //"SELECT rowid AS id, data FROM messages, LIMIT 1"
             var dataArray = [];
-            var firstIndex = 0;
+            var idArray = [];
+            var maxId = 0;
+            var args = [limit];
+            var whereClause = "";
+            if (this.delay > 0) {
+                whereClause = " WHERE timestamp < ?";
+                // add filter timestamp value at begin of arguements array
+                args.unshift(new Date().getTime() / 86400000 + 2440587.5 - this.delay);
+            }
 
-            db.each("SELECT data, id FROM messages LIMIT ?", [limit], (err, row) => {
-                //Errorhandling
-                if (err) {
-                    return reject(err);
-                }
-                try {
-                    if (firstIndex == 0) {
-                        firstIndex = row.id;
+            db.each("SELECT data, id FROM messages"
+                + whereClause
+                + " ORDER BY timestamp, "
+                + this.orderColumn
+                + " LIMIT ?", args, (err, row) => {
+                    //Errorhandling
+                    if (err) {
+                        return reject(err);
                     }
-                    var json = JSON.parse(row.data);
-                    dataArray.push(json);
-                } catch (e) {
-                    return reject(e);
-                }
+                    try {
+                        if (maxId < row.id) {
+                            maxId = row.id;
+                        }
+                        var json = JSON.parse(row.data);
+                        dataArray.push(json);
+                        idArray.push(row.id);
+                    } catch (e) {
+                        return reject(e);
+                    }
 
-            }, (err) => {
-                if (err) {
-                    return reject(err);
-                }
+                }, (err) => {
+                    if (err) {
+                        return reject(err);
+                    }
 
-                const dataWithInformation = {
-                    items: dataArray,
-                    firstIndex: firstIndex,
-                };
+                    const dataWithInformation = {
+                        items: dataArray,
+                        ids: idArray,
+                        maxId: maxId
+                    };
 
-                return resolve(dataWithInformation);
-            });
+                    return resolve(dataWithInformation);
+                });
         });
     }
 
@@ -207,11 +253,12 @@ module.exports = class Storage {
         this.dataActionCounter++;
     }
 
-    async deleteData(start, end) {
-        await this.wrapRunPromise("DELETE FROM messages WHERE id BETWEEN $start and $end", {
-            $start: start,
-            $end: end
-        });
+    async deleteData(ids) {
+        var sql = "DELETE FROM messages WHERE id IN (";
+        ids.forEach(id => sql += id + ",");
+        sql = sql.substring(0, sql.length - 1) + ")";
+        await this.wrapRunPromise(sql);
+
         // increment data action counter for swap transaction job
         this.dataActionCounter++;
     }
@@ -240,7 +287,7 @@ module.exports = class Storage {
                         jsons.push(JSON.stringify(chunk[i]));
                         for (var addVal2 of additionalValues) {
                             sql += ",?";
-                            jsons.push(addVal2.value);
+                            jsons.push(addVal2.value(chunk[i]));
                         }
                         sql += "),(?";
                     }
@@ -285,11 +332,35 @@ module.exports = class Storage {
     }
 
     async storeData(data) {
-        await this._storeDataInChunks("messages", data);
+        await this._storeDataInChunks("messages", data,
+            [
+                {
+                    column: "timestamp",
+                    value: function (item) {
+                        // calculate julian date
+                        return (new Date(item.timestamp ?? new Date())).getTime() / 86400000 + 2440587.5;
+                    }
+                },
+                {
+                    column: "is_event",
+                    value: function (item) {
+                        // only item type = 2 is an event
+                        return item.type == 2 ? 1 : 0;
+                    }
+                }
+            ]);
     }
 
     async storeConfigData(data, category) {
-        await this._storeDataInChunks("configMessages", data, [{ column: "category", value: category }]);
+        await this._storeDataInChunks("configMessages", data,
+            [
+                {
+                    column: "category",
+                    value: function (item) {
+                        return category;
+                    }
+                }
+            ]);
     }
 
     _closeDatabase() {
@@ -368,10 +439,8 @@ module.exports = class Storage {
                     do {
                         // delete block from storage
                         // calculate block size depending on current item count and cleanup factor
-                        var data = await self.getStorageData(1);
-                        var startIndex = data.firstIndex;
-                        var endIndex = startIndex + Math.ceil(itemCount * self.cleanupFactor);
-                        await self.deleteData(startIndex, endIndex);
+                        var data = await self.getStorageData(Math.ceil(itemCount * self.cleanupFactor));
+                        await self.deleteData(data.ids);
                         // shrink file size
                         await self._commitTransaction();
                         await self.wrapRunPromise("VACUUM;");

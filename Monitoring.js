@@ -53,7 +53,9 @@ module.exports = function (RED) {
         var defaultSettings = {
             cycleTime: 3600,
             maxBufferSize: 100,
-            maxItemsPerPackage: 10000
+            maxItemsPerPackage: 10000,
+            delay: 0,
+            priorityMode: Storage.PriorityMode.FIFO
         };
         // if a property is not set in config, take default value
         Object.keys(defaultSettings).forEach(key => {
@@ -71,6 +73,13 @@ module.exports = function (RED) {
         var clientID = RED.util.evaluateNodeProperty(config.clientID, config.clientIDType, node);
         var clientSecret = RED.util.evaluateNodeProperty(config.clientSecret, config.clientSecretType, node);
         var clientCredentials = clientID && clientSecret ? Buffer.from(clientID + ":" + clientSecret).toString("base64") : null;
+        var maxBufferSize = (RED.util.evaluateNodeProperty(config.maxBufferSize, config.maxBufferSizeType, node) || defaultSettings.maxBufferSize);
+        maxBufferSize = maxBufferSize > 0 ? maxBufferSize : defaultSettings.maxBufferSize;
+        var delay = (RED.util.evaluateNodeProperty(config.delay, config.delayType, node) || defaultSettings.delay);
+        delay = delay >= 0 ? delay : defaultSettings.delay;
+        var priorityMode = (RED.util.evaluateNodeProperty(config.priorityMode, config.priorityModeType, node) || defaultSettings.priorityMode);
+        var cycleTime = (RED.util.evaluateNodeProperty(config.cycleTime, config.cycleTimeType, node) || defaultSettings.cycleTime);
+        cycleTime = cycleTime > 0 ? cycleTime : defaultSettings.cycleTime;
 
         if (!(id && customerID && eqID && clientID && clientCredentials)) {
             handleException(new Error("Not all parameters set!"));
@@ -104,7 +113,12 @@ module.exports = function (RED) {
         var client = new OAuthClient(clientID, clientCredentials, tokenUrl);
 
         // set up buffer
-        var storage = new Storage(id, (RED.util.evaluateNodeProperty(config.maxBufferSize, config.maxBufferSizeType, node) || defaultSettings.maxBufferSize));
+        var storage = new Storage(
+            id,
+            maxBufferSize,
+            delay,
+            priorityMode
+        );
         var storageInitializationInProgress = false;
         var storageInitialized = false;
         async function initStorage() {
@@ -153,6 +167,7 @@ module.exports = function (RED) {
             // stop job to send data from buffer to cloud
             try {
                 clearTimeout(timer);
+                timer = null;
                 await waitForStorage();
                 // save close storage
                 await storage.close();
@@ -369,7 +384,7 @@ module.exports = function (RED) {
                 // delete all processed items from storage 
                 // Hint: this includes the last processed item although it caused by an error. 
                 // This prevents queue processing from being blocked by a single error.                        
-                await storage.deleteData(data.firstIndex, data.firstIndex + response.body.result[0].current_item_index);
+                await storage.deleteData(data.ids.slice(0, response.body.result[0].current_item_index + 1));
 
                 // on Precondition fail, do not handle this as an exception
                 // but inform user about the error
@@ -416,15 +431,22 @@ module.exports = function (RED) {
                         break;
                     case 404:
                         setNodeStatus(nodeStatus.ERROR);
-                        errorOutput = new Error("Not Found!");
+                        errorOutput = new Error("Not found!");
                         break;
                     case 409:
                         setNodeStatus(nodeStatus.ERROR);
                         errorOutput = new Error("Conflict!");
                         break;
+                    case 500:
+                        setNodeStatus(nodeStatus.ERROR);
+                        errorOutput = new Error("Internal Server Error!");
+                        break;
                     default:
                         setNodeStatus(nodeStatus.ERROR);
-                        errorOutput = new Error("Unexpected error!");
+                        // add some info for service logs
+                        errorOutput = new Error("Unexpected error!"
+                            + "\nStatus Code: " + e.response.statusCode
+                            + "\nBody: " + JSON.stringify(e.response.body));
                         break;
                 }
             }
@@ -517,11 +539,9 @@ module.exports = function (RED) {
 
             // set next cycle time
             // - balance drift
-            // - note minimum of 1 second for next cycle, so there is no endless transmitting
-            var nextCycle = Math.max(
-                (RED.util.evaluateNodeProperty(config.cycleTime, config.cycleTimeType, node) || defaultSettings.cycleTime) *
-                1000 - (jobEndDate - jobStartDate), 1000);
-            timer = setTimeout(async () => transmitData(), nextCycle);
+            // - minimum of 1 second for next cycle, so there is no endless transmitting
+            var nextCycle = Math.max(cycleTime * 1000 - (jobEndDate - jobStartDate), 1000);
+            resetTimerForTransmitData(nextCycle);
         }
 
         // inital timer        
@@ -538,10 +558,16 @@ module.exports = function (RED) {
             } catch (e) {
                 handleException(e);
                 // retry authentication with next cycle
-                timer = setTimeout(() => transmitData(),
-                    (RED.util.evaluateNodeProperty(config.cycleTime, config.cycleTimeType, node) || defaultSettings.cycleTime));
+                resetTimerForTransmitData(cycleTime);
             }
         }, 1000);
+
+        function resetTimerForTransmitData(timeout) {
+            // prevent transmitData() resetting the timer again if node was disposed
+            if (timer) {
+                timer = setTimeout(() => transmitData(), timeout);
+            }
+        }
     }
     RED.nodes.registerType("Monitoring", MonitoringNode);
 };

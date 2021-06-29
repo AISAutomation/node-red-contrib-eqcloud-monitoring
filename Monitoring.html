@@ -44,7 +44,7 @@
             },
             cycleTime: {
                 value: 3600,
-                validate: function(v) {
+                validate: function (v) {
                     var validator = RED.validators.typedInput('cycleTimeType');
                     if (!validator(v)) return false;
                     if ($("#node-input-cycleTime").typedInput('type') == 'num' && v < 1) return false;
@@ -57,7 +57,7 @@
             },
             maxBufferSize: {
                 value: 100,
-                validate: function(v) {
+                validate: function (v) {
                     var validator = RED.validators.typedInput('maxBufferSizeType');
                     if (!validator(v)) return false;
                     if ($("#node-input-maxBufferSize").typedInput('type') == 'num' && v <= 0) return false;
@@ -68,14 +68,27 @@
             maxBufferSizeType: {
                 value: "num"
             },
-            /*
-            maxItemsPerPackage: {
-                value: 10000,
-                validate: function(v) {
-                    return v > 0;
+            delay: {
+                value: 0,
+                validate: function (v) {
+                    var validator = RED.validators.typedInput('delayType');
+                    if (!validator(v)) return false;
+                    if ($("#node-input-delay").typedInput('type') == 'num' && v < 0) return false;
+                    return true;
                 },
                 required: true
-            },*/
+            },
+            delayType: {
+                value: "num"
+            },
+            priorityMode: {
+                value: "0",
+                required: true,
+                validate: RED.validators.typedInput('priorityModeType')
+            },
+            priorityModeType: {
+                value: "options"
+            },
             thingsConfigJson: {
                 value: ""
             }
@@ -83,12 +96,12 @@
         inputs: 1,
         outputs: 2,
         icon: "equipmentcloud.png",
-        label: function() {
+        label: function () {
             return this.name || "Monitoring";
         },
         inputLabels: "Monitoring v2 Bulk Uploader",
         outputLabels: ["Response", "Error"],
-        oneditprepare: function() {
+        oneditprepare: function () {
 
             $("#node-input-customerID").typedInput({
                 default: 'str',
@@ -115,22 +128,59 @@
                 typeField: $("#node-input-cycleTimeType"),
                 types: ["num", "env", "flow", "global"]
             });
+            if (!$("#node-input-cycleTime").val()) {
+                $("#node-input-cycleTime").typedInput('value', this._def.defaults.cycleTime.value);
+            }
             $("#node-input-maxBufferSize").typedInput({
                 default: 'num',
                 typeField: $("#node-input-maxBufferSizeType"),
                 types: ["num", "env", "flow", "global"]
             });
+            if (!$("#node-input-maxBufferSize").val()) {
+                $("#node-input-maxBufferSize").typedInput('value', this._def.defaults.maxBufferSize.value);
+            }
+            $("#node-input-delay").typedInput({
+                default: 'num',
+                typeField: $("#node-input-delayType"),
+                types: ["num", "env", "flow", "global"]
+            });
+            if (!$("#node-input-delay").val()) {
+                $("#node-input-delay").typedInput('value', this._def.defaults.delay.value);
+            }
+
+            $("#node-input-priorityMode").typedInput({
+                typeField: $("#node-input-priorityModeType"),
+                types: [{
+                    value: "num",
+                    options: [{
+                            value: "0",
+                            label: "First In First Out"
+                        },
+                        {
+                            value: "1",
+                            label: "Events First"
+                        },
+                        {
+                            value: "2",
+                            label: "Events Last"
+                        }
+                    ]
+                }]
+            });
+            if (!$("#node-input-priorityMode").val()) {
+                $("#node-input-priorityMode").typedInput('value', this._def.defaults.priorityMode.value);
+            }
 
             var configObj = getThingsConfig();
             if (configObj != null) {
                 refreshThingSelectionList(configObj);
             }
 
-            $(".credentialInput").change(function() {
+            $(".credentialInput").change(function () {
                 calcCredentials();
             });
 
-            $("#node-input-inputTypeSelection").change(function() {
+            $("#node-input-inputTypeSelection").change(function () {
                 if (this.value === "file") {
                     $(".customInputField").hide();
                     $(".fileInputField").show();
@@ -144,8 +194,9 @@
             });
 
             // hide credentail field when it depends on environment variables
-            $("#node-input-clientID,#node-input-clientSecret").on('change', function(type, value) {
-                if ($("#node-input-clientID").typedInput('type') == 'env' || $("#node-input-clientSecret").typedInput('type') == 'env') {
+            $("#node-input-clientID,#node-input-clientSecret").on('change', function (type, value) {
+                if ($("#node-input-clientID").typedInput('type') == 'env' || $(
+                        "#node-input-clientSecret").typedInput('type') == 'env') {
                     $(".clientCredentials").hide();
                 } else {
                     $(".clientCredentials").show();
@@ -153,12 +204,12 @@
             });
 
             //avoid issue when selecting the file with equal name not firing change event
-            $('#fileSelector').click(function() {
+            $('#fileSelector').click(function () {
                 //clean input value of file selector (no change event is fired)
                 this.value = null;
             });
 
-            $("#fileSelector").change(async function() {
+            $("#fileSelector").change(async function () {
                 readJsonFile(this.files[0], (json) => {
 
                     $('#node-input-thingsConfigJson').val(JSON.stringify(json));
@@ -178,7 +229,7 @@
 
 
             //Is fired when a new value is selected
-            $("#node-input-eqSelection").change(function() {
+            $("#node-input-eqSelection").change(function () {
                 var configObj = getThingsConfig();
                 if (configObj) {
                     $('.credentialField').typedInput('type', 'str');
@@ -198,7 +249,7 @@
             });
         },
 
-        oneditsave: function() {
+        oneditsave: function () {
 
         }
     });
@@ -246,7 +297,7 @@
 
     function refreshThingSelectionList(configObj) {
         $("#node-input-eqSelection").empty();
-        configObj.things.forEach(function(item, index) {
+        configObj.things.forEach(function (item, index) {
             $("#node-input-eqSelection").append(new Option(item.id, item.id));
         });
         //Write back the last selected value of EQ
@@ -311,14 +362,20 @@
     </div>
     <input type="hidden" id="node-input-cycleTimeType">
     <div class="form-row">
+        <label for="node-input-delay"><i class="fa fa-history"></i></i> Sending Delay [s]</label>
+        <input type="text" id="node-input-delay" placeholder="">
+    </div>
+    <input type="hidden" id="node-input-delayType">
+    <div class="form-row">
+        <label for="node-input-priorityMode"><i class="fa fa-sort-amount-desc"></i></i> Item Priority</label>
+        <input type="text" id="node-input-priorityMode" placeholder="">
+    </div>
+    <input type="hidden" id="node-input-priorityModeType">
+    <div class="form-row">
         <label for="node-input-maxBufferSize"><i class="fa fa-database"></i></i> Max. Buffer Size [MB]</label>
         <input type="text" id="node-input-maxBufferSize" placeholder="">
     </div>
     <input type="hidden" id="node-input-maxBufferSizeType">
-    <!-- <div class="form-row">
-        <label for="node-input-maxItemsPerPackage"><i class="fa fa-cube"></i></i> Max. Number of Items per Package</label>
-        <input type="text" id="node-input-maxItemsPerPackage" placeholder="">
-    </div> -->
     <input type="hidden" id="node-input-thingsConfigJson" />
 </script>
 
@@ -326,18 +383,25 @@
     <p>
         This node is the easiest way to connect your equipment to the EquipmentCloud<sup>&reg;</sup> of
         <font color="#ff0000">Kontron AIS GmbH</font> for any Monitoring purposes. The following config parameters can bet set in our Monitoring Node:<br><br>
-        <strong>Name</strong><br> Give the node an individual name (e.g. EquipmentName)<br><br>
-        <strong>Authentication</strong><br> There are 2 different ways for adding the Authentication settings into the node.<br>The first one is "Custom": You have to login into your EquipmentCloud<sup>&reg;</sup>, choose "Equipment Configuration" and
+        <b>Name</b><br> Give the node an individual name (e.g. EquipmentName)<br><br>
+        <b>Authentication</b><br> There are 2 different ways for adding the Authentication settings into the node.<br>The first one is "Custom": You have to login into your EquipmentCloud<sup>&reg;</sup>, choose "Equipment Configuration" and
         "Equipment". In the list of available Equipments you will find the REST Service icon behind each equipment. Now choose your equipment and press the REST Service icon for all REST API details. Now you have to copy all values into the relevant input
         fields.
         <br> The second option is "File": You have to login into your EquipmentCloud<sup>&reg;</sup>, choose "Equipment Configuration" and "Equipment". In the right top corner of the Equipment list, you will find "Download Rest Configuration". A JSON
-        file will be downloaded. Now you can select the downloaded file at the parameter "<strong>Json config</strong>". After the upload you have to select the target Equipment from the Dropdown field at parameter "<strong>Equipment</strong>".<br><br>
-        <strong>Cycle Time</strong><br> This parameters sets the interval for sending values to the EquipmentCloud®. Incoming messages will be stored inside a buffer until the next interval. When the messages are send successfully to the EquipmentCloud®
+        file will be downloaded. Now you can select the downloaded file at the parameter "<b>Json config</b>". After the upload you have to select the target Equipment from the Dropdown field at parameter "<b>Equipment</b>".<br><br>
+        <b>Cycle Time</b><br> This parameters sets the interval for sending values to the EquipmentCloud®. Incoming messages will be stored inside a buffer until the next interval. When the messages are send successfully to the EquipmentCloud®
         the buffer will be cleared.<br><br>
-        <strong>Max. Buffer Size</strong><br> You can set a maximum buffer size for storing the messages until the next cycle. If the maximum buffer is reached, older messages will be deleted and new messages will be stored.<br><br> When you have configured
+        <b>Sending Delay</b><br>
+        The monitoring node automatically sorts all buffered messages in the chronologically correct order before sending them to EquipmentCloud®. This is done using the <i>timestamp</i> attribute in the message. If your process has data or events that are not available until a later point in time, you can also delay the sending of messages. In this case, only messages older than the specified delay time are taken from the buffer during each send cycle.<br><br>
+        <b>Item Priority</b><br>
+        This parameter sets the sort order of messages with the same <i>timestamp</i> attribute. This way you can distinguish whether a state change occurred before or after an alarm or a part was produced. The order of events can affects the presentation of data and calculation of KPI values in the EqupmentCloud®. The following options are available for this purpose:<ul>
+            <li><b>First In First Out</b>: The order in which the messages were passed to the node is preserved.</li>
+            <li><b>Events First</b>: Events for equipment state change are sent to EquipmentCloud® first. All following alarms and produced parts therefore get the property of the last passed state of the equipment.</li>
+            <li><b>Events Last</b>: Events for equipment state change are sent to EquipmentCloud® after the other messages. All alarms and produced parts up to the state change message therefore get the property of the previous equipment state.</li></ul>
+        <b>Max. Buffer Size</b><br> You can set a maximum buffer size for storing the messages until the next cycle. If the maximum buffer is reached, older messages will be deleted and new messages will be stored.<br><br> When you have configured
         your Monitoring node correctly, the node will get a token and will show this as a green point under the node in your flow.<br>
     </p>
-    <h3><strong>Monitoring Data</strong></h3>
+    <h3><b>Monitoring Data</b></h3>
     <p>
         The input for the Monitoring node must be a message format based on the REST API of the EquipmentCloud®. The following JSON message is an example for such a message. Please note that you have to be ensure that the correct type for each item (alarm, event,
         etc.) is selected.
@@ -389,7 +453,7 @@
 }</pre>
         <br>
     </p>
-    <h3><strong>Equipment Configuration</strong></h3>
+    <h3><b>Equipment Configuration</b></h3>
     <p>
         You can also dynamically upload the type configuration of the equipment. This allows, e.g., to create an alarm in the EquipmentCloud®, which has not been configured yet. Note that this may affect other equipment of the same type.
         <pre>
@@ -495,7 +559,7 @@
 }</pre>
         <br>
     </p>
-    <h3><strong>More information</strong></h3>
+    <h3><b>More information</b></h3>
     <p>
         If you want to have more information regarding our REST API, please log in to your account and take a look at:<br><b>Help Center / Help & Tips / RESTful Service API Explorer / Monitoring API 2.0</b>
     </p>

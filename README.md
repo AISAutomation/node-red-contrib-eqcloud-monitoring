@@ -19,21 +19,30 @@ After installation you will find the node inside the Node-red palette.
 
 ![node_properties](images/node_properties.PNG?raw=true)
 
-**Name**
+**Name**:
 Give the node an individual name (e.g. EquipmentName)
 
-**Authentication**
+**Authentication**:
 There are 2 different ways for adding the Authentication settings into the node.
 
 The first one is "Custom": You have to login into your EquipmentCloud®, choose "Equipment Configuration" and "Equipment". In the list of available Equipments you will find the REST Service icon behind each equipment. Now choose your equipment and press the REST Service icon for all REST API details. Now you have to copy all values into the relevant input fields.
 
 The second option is "File": You have to login into your EquipmentCloud®, choose "Equipment Configuration" and "Equipment". In the right top corner of the Equipment list, you will find "Download Rest Configuration". A JSON file will be downloaded. Now you can select the downloaded file at the parameter "Json config". After the upload you have to select the target Equipment from the Dropdown field at parameter "Equipment".
 
-**Cycle Time**
+**Cycle Time**:
 This parameters sets the interval for sending values to the EquipmentCloud®. Incoming messages will be stored inside a buffer until the next interval. When the messages are send successfully to the EquipmentCloud® the buffer will be cleared.
 
-**Max. Buffer Size**
-You can set a maximum buffer size for storing the messages until the next cycle. If the maximum buffer is reached, older messages will be deleted and new messages will be stored.
+**Sending Delay**:
+The monitoring node automatically sorts all buffered messages in the chronologically correct order before sending them to EquipmentCloud®. This is done using the *timestamp* attribute in the message. If your process has data or events that are not available until a later point in time, you can also delay the sending of messages. In this case, only messages older than the specified delay time are taken from the buffer during each send cycle.
+
+**Item Priority**:
+This parameter sets the sort order of messages with the same *timestamp* attribute. This way you can distinguish whether a state change occurred before or after an alarm or a part was produced. The order of events can affects the presentation of data and calculation of KPI values in the EqupmentCloud®. The following options are available for this purpose:
+- **First In First Out**: The order in which the messages were passed to the node is preserved. 
+- **Events First**: Events for equipment state change are sent to EquipmentCloud® first. All following alarms and produced parts therefore get the property of the last passed state of the equipment.
+- **Events Last**: Events for equipment state change are sent to EquipmentCloud® after the other messages. All alarms and produced parts up to the state change message therefore get the property of the previous equipment state.
+
+**Max. Buffer Size**:
+You can set a maximum buffer size for storing the messages until the next cycle. If the maximum buffer is reached, older messages will be deleted and new messages will be stored. 
 
 When you have configured your Monitoring node correctly, the node will get a token and will show this as a green point under the node in your flow.
 
