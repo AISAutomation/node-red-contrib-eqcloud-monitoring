@@ -338,7 +338,7 @@ module.exports = class Storage {
                     column: "timestamp",
                     value: function (item) {
                         // calculate julian date
-                        return (new Date(item.timestamp ?? new Date())).getTime() / 86400000 + 2440587.5;
+                        return (new Date(item.timestamp ? item.timestamp : new Date())).getTime() / 86400000 + 2440587.5;
                     }
                 },
                 {
