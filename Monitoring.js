@@ -1,6 +1,6 @@
 /*
 
-    Copyright 2021, Kontron AIS GmbH
+    Copyright 2023, Kontron AIS GmbH
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files(the "Software"), to deal in
@@ -25,6 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 const OAuthClient = require("./OAuthClient");
 const Storage = require("./Storage");
+const logger = require("./Logger");
 
 module.exports = function (RED) {
 
@@ -45,6 +46,11 @@ module.exports = function (RED) {
         "processvalues",
         "oeeparameters"];
 
+    const transmitDataTypes = {
+        CYCLE: "cycle",
+        FLUSH: "flush"
+    };
+
     function MonitoringNode(config) {
         /* When new parameters are introduced, they are always null when upgrading existing nodes.
            The default setting of the GUI/HTML only applies to new nodes, 
@@ -55,7 +61,10 @@ module.exports = function (RED) {
             maxBufferSize: 100,
             maxItemsPerPackage: 10000,
             delay: 0,
-            priorityMode: Storage.PriorityMode.FIFO
+            priorityMode: Storage.PriorityMode.FIFO,
+            SelectionLogToFile: false,
+            maxNumLogFiles: 3,
+            maxLogFileSize: 10,
         };
         // if a property is not set in config, take default value
         Object.keys(defaultSettings).forEach(key => {
@@ -80,10 +89,21 @@ module.exports = function (RED) {
         var priorityMode = (RED.util.evaluateNodeProperty(config.priorityMode, config.priorityModeType, node) || defaultSettings.priorityMode);
         var cycleTime = (RED.util.evaluateNodeProperty(config.cycleTime, config.cycleTimeType, node) || defaultSettings.cycleTime);
         cycleTime = cycleTime > 0 ? cycleTime : defaultSettings.cycleTime;
+        var SelectionLogToFile = (RED.util.evaluateNodeProperty(config.SelectionLogToFile, node));
+        var pathLogFile = (RED.util.evaluateNodeProperty(config.pathLogFile, config.pathLogFileType, node));
+        var maxNumLogFiles = (RED.util.evaluateNodeProperty(config.maxNumLogFiles, config.maxNumLogFilesType, node) || defaultSettings.maxNumLogFiles);
+        maxNumLogFiles = maxNumLogFiles >= 2 ? maxNumLogFiles : defaultSettings.maxNumLogFiles;
+        var maxLogFileSize = (RED.util.evaluateNodeProperty(config.maxLogFileSize, config.maxLogFileSizeType, node) || defaultSettings.maxLogFileSize);
+        maxLogFileSize = maxLogFileSize > 0 ? maxLogFileSize : defaultSettings.maxLogFileSize;
 
         if (!(id && customerID && eqID && clientID && clientCredentials)) {
             handleException(new Error("Not all parameters set!"));
             return;
+        }
+
+        // initialize file logger if enabled
+        if (SelectionLogToFile == true) {
+            logger.addFileLogger(id, node, pathLogFile, maxLogFileSize, maxNumLogFiles, "data")
         }
 
         // set initial status
@@ -108,7 +128,7 @@ module.exports = function (RED) {
         var tokenUrl = hostAddress + "/cloudconnect/oauth/token";
         var cloudUrl = hostAddress + "/cloudconnect/api/monitoring/v2/things/" + eqID;
 
-        node.debug("Host address: " + cloudUrl);
+        logger.debug("Host address: " + cloudUrl);
 
         var client = new OAuthClient(clientID, clientCredentials, tokenUrl);
 
@@ -123,7 +143,7 @@ module.exports = function (RED) {
         var storageInitialized = false;
         async function initStorage() {
             try {
-                node.debug("Open storage file " + id + ".db");
+                logger.debug("Open storage file " + id + ".db");
                 storageInitializationInProgress = true;
                 await storage.initialize();
                 storageInitialized = true;
@@ -149,6 +169,7 @@ module.exports = function (RED) {
         //Triggers if a new message comes to the node
         node.on("input", async function (msg) {
             //Check for config elements in message and identify (alarms, products, etc.)
+            logger.data("Input data:\n" + JSON.stringify(msg, null, 2)); //log to file
             for (const category of configCategories) {
                 if (msg.payload.hasOwnProperty(category)) {
                     await handleConfigData(
@@ -160,6 +181,11 @@ module.exports = function (RED) {
             //Monitoring messages
             if (msg.payload.hasOwnProperty("items")) {
                 await handleData(msg.payload.items);
+            }
+
+            //flush Buffer
+            if (msg.payload.buffer == transmitDataTypes.FLUSH) {
+                await transmitData(transmitDataTypes.FLUSH);
             }
         });
 
@@ -212,7 +238,7 @@ module.exports = function (RED) {
             if (currentStatus == status) return;
 
             currentStatus = status;
-            node.debug("Status: " + status);
+            logger.debug("Status: " + status);
             // set GUI indication status
             switch (status) {
                 case nodeStatus.CONNECTED:
@@ -240,6 +266,32 @@ module.exports = function (RED) {
             }
         }
 
+        function getPayloadFromResponse(response) {
+            var request = null;
+            if (response.request) {
+                request = {
+                    uri: {
+                        protocol: response.request.protocol,
+                        auth: response.request._redirectable ? response.request._redirectable._options.auth : null,
+                        host: response.request.host,
+                        port: response.request.connection.remotePort,
+                        hostname: response.request._redirectable ? response.request._redirectable._options.hostname : null,
+                        pathname: response.request._redirectable ? response.request._redirectable._options.pathname : null,
+                        path: response.request.path,
+                        href: response.request._redirectable ? response.request._redirectable._currentUrl : null,
+                    },
+                    method: response.request.method,
+                    headers: response.config.headers,
+                }
+            }
+            return {
+                statusCode: response.status,
+                body: response.data,
+                headers: response.headers,
+                request: request
+            };
+        }
+
         async function transferringConfigDataToCloud() {
             var data;
             // Hint: its not allowed to call any other async function between
@@ -254,13 +306,12 @@ module.exports = function (RED) {
 
                 for (const cat of data.categories) {
 
-                    node.debug("Config: add " + cat.items.length + " " + cat.category);
-
+                    logger.debug("Config: add " + cat.items.length + " " + cat.category);
                     var response = await client.sendMessage(
                         { "items": cat.items },
                         cloudUrl + "/configuration/" + cat.category);
 
-                    switch (response.statusCode) {
+                    switch (response.status) {
                         case 200: // Ok
                         case 202: // Accepted
                         case 412: // Procondition failed
@@ -272,25 +323,18 @@ module.exports = function (RED) {
                             };
                     }
 
-                    //send response to output
-                    node.send({
-                        payload: {
-                            statusCode: response.statusCode,
-                            body: response.body,
-                            headers: response.headers,
-                            request: {
-                                uri: response.request.uri,
-                                method: response.request.method,
-                                headers: response.request.headers,
-                            }
-                        }
-                    });
+                    // send response to output
+                    var output = {
+                        payload: getPayloadFromResponse(response)
+                    };
+                    logger.data("Response:\n" + JSON.stringify(output, null, 2)); //log to file
+                    node.send(output);
 
                     // on Precondition fail, do not handle this as an exception
                     // but inform user about the error
-                    if (response.statusCode == 412) {
-                        var errorOutput = new Error(response.body.result[0].message + "\nEnable \"Force Bulk Upload\" for this Equipment to ignore this error.");
-                        node.error(errorOutput);
+                    if (response.status == 412) {
+                        var errorOutput = new Error(response.data.result[0].message + "\nEnable \"Force Bulk Upload\" for this Equipment to ignore this error.");
+                        logger.error(errorOutput);
                         node.send([null, {
                             payload: errorOutput
                         }]);
@@ -310,15 +354,15 @@ module.exports = function (RED) {
             while (repeatReadingBuffer) {
                 var readStartDate = new Date();
 
-                node.debug("Reading...");
+                logger.debug("Reading...");
                 var limit = config.maxItemsPerPackage;
                 var data = await storage.getStorageData(limit);
 
                 var itemCount = data.items.length;
-                node.debug("Read " + itemCount + " items from buffer");
+                logger.debug("Read " + itemCount + " items from buffer");
 
                 var readEndDate = new Date();
-                node.debug("Reading time " + ((readEndDate - readStartDate) / 1000).toFixed(3)) + "s";
+                logger.debug("Reading time " + ((readEndDate - readStartDate) / 1000).toFixed(3)) + "s";
 
                 // do nothing is there is no data
                 if (itemCount == 0) {
@@ -338,14 +382,14 @@ module.exports = function (RED) {
                 setNodeStatus(nodeStatus.SENDING);
 
                 var sendStartDate = new Date();
-
                 var response = await client.sendMessage({
                     "items": data.items
                 }, cloudUrl);
-                switch (response.statusCode) {
+
+                switch (response.status) {
                     case 200: // Ok
                     case 202: // Accepted
-                    case 412: // Procondition failed
+                    case 412: // Precondition failed
                     case 413: // Payload to large 
                         break; // accept these statuscodes
                     default: // otherwise there is an error
@@ -355,42 +399,43 @@ module.exports = function (RED) {
                 }
 
                 // send response to output
-                node.send({
-                    payload: {
-                        statusCode: response.statusCode,
-                        body: response.body,
-                        headers: response.headers,
-                        request: {
-                            uri: response.request.uri,
-                            method: response.request.method,
-                            headers: response.request.headers,
-                        }
-                    }
-                });
+                var output = {
+                    payload: getPayloadFromResponse(response)
+                };
+                logger.data("Response:\n" + JSON.stringify(output, null, 2)); //log to file
+                node.send(output);
 
                 var sendEndDate = new Date();
-                node.debug("Sending time " + ((sendEndDate - sendStartDate) / 1000).toFixed(3)) + "s";
+                logger.debug("Sending time " + ((sendEndDate - sendStartDate) / 1000).toFixed(3)) + "s";
 
                 // update internal item limit for each call with given limit from response
                 // but respect a max package size of 100000 items per call
                 // to keep a single call at a manageable size.
-                var newMaxItemsPerPackage = Math.min(response.body.result[0].max_allowed_items, 100000);
-                // if necessary override internal item limit for each call with given limit in response
-                if (newMaxItemsPerPackage != config.maxItemsPerPackage) {
-                    // Hint: to avoid race condition in this async method we have to await 
-                    // for a seperate function to override the value
-                    await overrideMaxItemsPerPackage(newMaxItemsPerPackage);
+                if (response.data.result[0].max_allowed_items) {
+                    var newMaxItemsPerPackage = Math.min(response.data.result[0].max_allowed_items, 100000);
+                    // if necessary override internal item limit for each call with given limit in response
+                    if (newMaxItemsPerPackage != config.maxItemsPerPackage) {
+                        // Hint: to avoid race condition in this async method we have to await 
+                        // for a seperate function to override the value
+                        await overrideMaxItemsPerPackage(newMaxItemsPerPackage);
+                    }
                 }
                 // delete all processed items from storage 
                 // Hint: this includes the last processed item although it caused by an error. 
-                // This prevents queue processing from being blocked by a single error.                        
-                await storage.deleteData(data.ids.slice(0, response.body.result[0].current_item_index + 1));
+                // This prevents queue processing from being blocked by a single error.
+                if (response.data.result[0].current_item_index) {
+                    await storage.deleteData(data.ids.slice(0, response.data.result[0].current_item_index + 1));
+                }
 
                 // on Precondition fail, do not handle this as an exception
                 // but inform user about the error
-                if (response.statusCode == 412) {
-                    var errorOutput = new Error(response.body.result[0].message + "\nEnable \"Force Bulk Upload\" for this Equipment to ignore this error.");
-                    node.error(errorOutput);
+                if (response.status == 412) {
+                    if (response.data.result[0].message.includes("importer type")) {
+                        throw new Error("Importer Type of Equipment not set to RESTful Service API");
+                    }
+
+                    var errorOutput = new Error(response.data.result[0].message + "\nEnable \"Force Bulk Upload\" for this Equipment to ignore this error.");
+                    logger.error(errorOutput);
                     node.send([null, {
                         payload: errorOutput
                     }]);
@@ -398,12 +443,12 @@ module.exports = function (RED) {
 
                 // if too many items has been send, retry to send data
                 // maxItemsPerPackage has been upated above to the new limit
-                if (response.statusCode == 413) {
-                    node.debug(response.body.result[0].message + "\nChanged limit to " + newMaxItemsPerPackage);
+                if (response.status == 413) {
+                    logger.debug(response.data.result[0].message + "\nChanged limit to " + newMaxItemsPerPackage);
                 }
                 // otherweise check for repeat reading buffer
                 // do not repeat when all sended data has been processed and max package size was not reached
-                else if (response.body.result[0].current_item_index + 1 == itemCount && itemCount < limit) {
+                else if (response.data.result[0].current_item_index + 1 == itemCount && itemCount < limit) {
                     repeatReadingBuffer = false;
                 }
             }
@@ -424,7 +469,7 @@ module.exports = function (RED) {
             // if contains a response with statuscode but no inner execption
             // evaluate the statuscode
             if (e.response && !e.error) {
-                switch (e.response.statusCode) {
+                switch (e.response.status) {
                     case 401:
                         setNodeStatus(nodeStatus.NOT_CONNECTED);
                         errorOutput = new Error("Unauthorized!");
@@ -443,10 +488,16 @@ module.exports = function (RED) {
                         break;
                     default:
                         setNodeStatus(nodeStatus.ERROR);
+
+                        if (e.response.code == "ENOTFOUND") {
+                            errorOutput = new Error("No Connection!");
+                            break;
+                        }
+
                         // add some info for service logs
                         errorOutput = new Error("Unexpected error!"
-                            + "\nStatus Code: " + e.response.statusCode
-                            + "\nBody: " + JSON.stringify(e.response.body));
+                            + "\nStatus Code: " + e.response.status
+                            + "\nBody: " + JSON.stringify(e.response.data, null, 2));
                         break;
                 }
             }
@@ -457,18 +508,11 @@ module.exports = function (RED) {
             }
             // send response to output to make it accasable for user (for debug, etc.)
             if (e.response) {
-                node.send({
-                    payload: {
-                        statusCode: e.response.statusCode,
-                        body: e.response.body,
-                        headers: e.response.headers,
-                        request: {
-                            uri: e.response.request.uri,
-                            method: e.response.request.method,
-                            headers: e.response.request.headers,
-                        }
-                    }
-                });
+                var output = {
+                    payload: getPayloadFromResponse(e.response)
+                };
+                logger.data("Response:\n" + JSON.stringify(output, null, 2)); //log to file
+                node.send(output);
             }
 
             // handle direct exception:
@@ -478,7 +522,7 @@ module.exports = function (RED) {
             }
 
             if (errorOutput) {
-                node.error(errorOutput);
+                logger.error(errorOutput);
                 node.send([null, {
                     payload: errorOutput
                 }]);
@@ -491,7 +535,7 @@ module.exports = function (RED) {
                 e.message.includes("Unexpected string in JSON") ||
                 e.message.includes("unable to open database file") ||
                 e.message.includes("SQLITE_MISUSE: Database is closed"))) {
-                node.debug("Delete old storage file and retry to open database");
+                logger.debug("Delete old storage file and retry to open database");
                 const func = async () => {
                     storageInitialized = false;
                     try {
@@ -507,7 +551,7 @@ module.exports = function (RED) {
                         storageInitialized = true;
                     } catch (e) {
                         storageInitializationInProgress = false;
-                        node.error(e);
+                        logger.error(e);
                         node.send([null, {
                             payload: e
                         }]);
@@ -520,9 +564,17 @@ module.exports = function (RED) {
         // set job to send data from buffer to cloud 
         // - start with small delay after startup (see initial timer)
         // - repeat with cycle time
-        async function transmitData() {
+        async function transmitData(transmitCase) {
             var jobStartDate = Date.now();
-            node.debug("Start Job sending Data to Cloud");
+
+            if (transmitCase == transmitDataTypes.FLUSH) {
+                logger.debug("Trigger Data transfer from Buffer to Cloud");
+            }
+            else if (transmitCase == transmitDataTypes.CYCLE) {
+                logger.debug("Data transfer from Buffer to Cloud at cycle time");
+            }
+
+            logger.debug("Start Job sending Data to Cloud");
             if (storageInitialized) {
                 try {
                     await transferringConfigDataToCloud();
@@ -531,17 +583,19 @@ module.exports = function (RED) {
                     handleException(e);
                 }
             } else {
-                node.debug("Storage not initialized");
+                logger.debug("Storage not initialized");
             }
 
             var jobEndDate = Date.now();
-            node.debug("Job finished after " + ((jobEndDate - jobStartDate) / 1000).toFixed(3)) + "s";
+            logger.debug("Job finished after " + ((jobEndDate - jobStartDate) / 1000).toFixed(3)) + "s";
 
-            // set next cycle time
-            // - balance drift
-            // - minimum of 1 second for next cycle, so there is no endless transmitting
-            var nextCycle = Math.max(cycleTime * 1000 - (jobEndDate - jobStartDate), 1000);
-            resetTimerForTransmitData(nextCycle);
+            if (transmitCase != transmitDataTypes.FLUSH) {
+                // set next cycle time
+                // - balance drift
+                // - minimum of 1 second for next cycle, so there is no endless transmitting
+                var nextCycle = Math.max(cycleTime * 1000 - (jobEndDate - jobStartDate), 1000);
+                resetTimerForTransmitData(nextCycle);
+            }
         }
 
         // inital timer        
@@ -550,13 +604,14 @@ module.exports = function (RED) {
             try {
                 await client.authenticate();
                 // hint: if we came up to here, Statuscode is 200 
-                // and der there is no need for seperate error handling
+                // and there is no need for seperate error handling
                 setNodeStatus(nodeStatus.CONNECTED);
 
                 //send data to cloud
-                transmitData();
+                transmitData(transmitDataTypes.CYCLE);
             } catch (e) {
                 handleException(e);
+
                 // retry authentication with next cycle
                 resetTimerForTransmitData(cycleTime);
             }
@@ -565,7 +620,7 @@ module.exports = function (RED) {
         function resetTimerForTransmitData(timeout) {
             // prevent transmitData() resetting the timer again if node was disposed
             if (timer) {
-                timer = setTimeout(() => transmitData(), timeout);
+                timer = setTimeout(() => transmitData(transmitDataTypes.CYCLE), timeout);
             }
         }
     }

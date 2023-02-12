@@ -46,6 +46,9 @@ You can set a maximum buffer size for storing the messages until the next cycle.
 
 When you have configured your Monitoring node correctly, the node will get a token and will show this as a green point under the node in your flow.
 
+**Logging**:
+You can activate the option "Logging to File" with the checkbox. If "Logging to File" is activated, the Monitoring node creates rotating log files. You can specify a custom directory path, the maximum number of log files (minimum 2) and the maximum size per log file in MB. If no directory is specified for logging, the current working directory is used. If the maximum size is reached, the system creates a new log file. If the maximum number of log files exists, the oldest one will be deleted and the system creates a new one.
+         
 ### Monitoring Data 
 
 The input for the Monitoring node must be a message format based on the REST API of the EquipmentCloud®. The following JSON message is an example for such a message. Please note that you have to be ensure that the correct type for each item (alarm, event, etc.) is selected.
@@ -96,6 +99,16 @@ The input for the Monitoring node must be a message format based on the REST API
     ]
 }
 ```
+
+### Dynamic Data Upload
+
+In case you want to upload your data from the buffer independent from the Cycle Time, there is a possibility to trigger the data transfer to the EquipmentCloud®. With the following JSON message the Monitoring node will initialize the transfer of all data from the buffer to the EquipmentCloud®. When the messages are send successfully the buffer will be cleared.
+```
+{
+    "buffer":"flush"   
+}
+```
+
 ### Equipment Configuration
 
 You can also dynamically upload the type configuration of the equipment. This allows, e.g., to create an alarm in the EquipmentCloud®, which has not been configured yet. Note that this may affect other equipment of the same type.

@@ -87,10 +87,50 @@
                 validate: RED.validators.typedInput('priorityModeType')
             },
             priorityModeType: {
-                value: "options"
+                value: "num"
             },
             thingsConfigJson: {
                 value: ""
+            },
+            SelectionLogToFile: {
+                value: false,
+                required: true
+            },
+            pathLogFile: {
+                validate: function (v) {
+                    var validator = RED.validators.typedInput('pathLogFileType');
+                    if (!validator(v)) return false;
+                    return true;
+                }
+            },
+            pathLogFileType: {
+                value: "str"
+            },
+            maxNumLogFiles: {
+                value: 3,
+                validate: function (v) {
+                    var validator = RED.validators.typedInput('maxNumLogFilesType');
+                    if (!validator(v)) return false;
+                    if ($("#node-input-maxNumLogFiles").typedInput('type') == 'num' && v < 2) return false;
+                    return true;
+                },
+                required: true
+            },
+            maxNumLogFilesType: {
+                value: "num"
+            },
+            maxLogFileSize: {
+                value: 10,
+                validate: function (v) {
+                    var validator = RED.validators.typedInput('maxLogFileSizeType');
+                    if (!validator(v)) return false;
+                    if ($("#node-input-maxLogFileSize").typedInput('type') == 'num' && v <= 0) return false;
+                    return true;
+                },
+                required: true
+            },
+            maxLogFileSizeType: {
+                value: "num"
             }
         },
         inputs: 1,
@@ -148,8 +188,8 @@
                 $("#node-input-delay").typedInput('value', this._def.defaults.delay.value);
             }
 
-            $("#node-input-priorityMode").typedInput({
-                typeField: $("#node-input-priorityModeType"),
+            $("#node-input-priorityMode").typedInput({        
+                type:"num",     
                 types: [{
                     value: "num",
                     options: [{
@@ -170,6 +210,38 @@
             if (!$("#node-input-priorityMode").val()) {
                 $("#node-input-priorityMode").typedInput('value', this._def.defaults.priorityMode.value);
             }
+            $("#node-input-pathLogFile").typedInput({
+                default: 'str',
+                typeField: $("#node-input-pathLogFileType"),
+                types: ["str", "env", "flow", "global"]
+            });
+            if (!$("#node-input-pathLogFile").val()) {
+                $("#node-input-pathLogFile").typedInput('value', this._def.defaults.pathLogFile.value);
+            }
+            $("#node-input-maxNumLogFiles").typedInput({
+                default: 'num',
+                typeField: $("#node-input-maxNumLogFilesType"),
+                types: ["num", "env", "flow", "global"]
+            });
+            if (!$("#node-input-maxNumLogFiles").val()) {
+                $("#node-input-maxNumLogFiles").typedInput('value', this._def.defaults.maxNumLogFiles.value);
+            }
+            $("#node-input-maxLogFileSize").typedInput({
+                default: 'num',
+                typeField: $("#node-input-maxLogFileSizeType"),
+                types: ["num", "env", "flow", "global"]
+            });
+            if (!$("#node-input-maxLogFileSize").val()) {
+                $("#node-input-maxLogFileSize").typedInput('value', this._def.defaults.maxLogFileSize.value);
+            }
+
+            $("#node-input-SelectionLogToFile").change(function () {
+                if (this.checked) {
+                    $(".logField").show();
+                } else {
+                    $(".logField").hide();
+                }
+            });
 
             var configObj = getThingsConfig();
             if (configObj != null) {
@@ -377,6 +449,25 @@
     </div>
     <input type="hidden" id="node-input-maxBufferSizeType">
     <input type="hidden" id="node-input-thingsConfigJson" />
+    <div class="form-row">
+        <label for="node-input-SelectionLogToFile"><i class="fa fa-file-text-o"></i> Logging to File</label>   
+        <input type="checkbox" id="node-input-SelectionLogToFile" name="node-input-SelectionLogToFile" style="width: auto;">
+    </div>
+    <div class="form-row logField hidden">
+        <label for="node-input-pathLogFile"><i class="fa fa-folder"></i> Logging Directory</label>
+        <input type="text" id="node-input-pathLogFile">
+    </div>
+    <input type="hidden" id="node-input-pathLogFileType">
+    <div class="form-row logField hidden">
+        <label for="node-input-maxNumLogFiles"><i class="fa fa-files-o"></i></i> Max. Number of Log Files (min. 2)</label>
+        <input type="text" id="node-input-maxNumLogFiles" placeholder="3">
+    </div>
+    <input type="hidden" id="node-input-maxNumLogFilesType">
+    <div class="form-row logField hidden">
+        <label for="node-input-maxLogFileSize"><i class="fa fa-file"></i></i> Max. Size per Log File [MB]</label>
+        <input type="text" id="node-input-maxLogFileSize" placeholder="10">
+    </div>
+    <input type="hidden" id="node-input-maxLogFileSizeType">
 </script>
 
 <script type="text/x-red" data-help-name="Monitoring">
@@ -399,7 +490,9 @@
             <li><b>Events First</b>: Events for equipment state change are sent to EquipmentCloud® first. All following alarms and produced parts therefore get the property of the last passed state of the equipment.</li>
             <li><b>Events Last</b>: Events for equipment state change are sent to EquipmentCloud® after the other messages. All alarms and produced parts up to the state change message therefore get the property of the previous equipment state.</li></ul>
         <b>Max. Buffer Size</b><br> You can set a maximum buffer size for storing the messages until the next cycle. If the maximum buffer is reached, older messages will be deleted and new messages will be stored.<br><br> When you have configured
-        your Monitoring node correctly, the node will get a token and will show this as a green point under the node in your flow.<br>
+        your Monitoring node correctly, the node will get a token and will show this as a green point under the node in your flow.<br><br>
+        <b>Logging</b><br> 
+        You can activate the option "Logging to File" with the checkbox. If "Logging to File" is activated, the Monitoring node creates rotating log files. You can specify a custom directory path, the maximum number of log files (minimum 2) and the maximum size per log file in MB. If no directory is specified for logging, the current working directory is used. If the maximum size is reached, the system creates a new log file. If the maximum number of log files exists, the oldest one will be deleted and the system creates a new one.<br><br>            
     </p>
     <h3><b>Monitoring Data</b></h3>
     <p>
@@ -450,6 +543,15 @@
             "value_boolean": true
         }
     ]
+}</pre>
+        <br>
+    </p>
+    <h3><b>Dynamic Data Upload</b></h3>
+    <p>
+        In case you want to upload your data from the buffer independent from the Cycle Time, there is a possibility to trigger the data transfer to the EquipmentCloud®. With the following JSON message the Monitoring node will initialize the transfer of all data from the buffer to the EquipmentCloud®. When the messages are send successfully the buffer will be cleared.
+        <pre>
+{
+    "buffer":"flush"   
 }</pre>
         <br>
     </p>

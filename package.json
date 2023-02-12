@@ -1,14 +1,16 @@
 {
   "name": "@ais_automation/node-red-contrib-eqcloud-monitoring",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "node-red": {
     "nodes": {
       "Monitoring": "Monitoring.js"
     }
   },
   "dependencies": {
-    "request": "^2.88.0",
-    "sqlite3": "^4.0.9"
+    "axios": "^1.2.3",
+    "sqlite3": "^5.1.4",
+    "winston": "^3.8.2",
+    "winston-daily-rotate-file": "^4.7.1"
   },
   "description": "Client for EquipmentCloud® Monitoring",
   "license": "MIT",
@@ -51,10 +53,10 @@
     "eslint-plugin-node": "^9.1.0",
     "eslint-plugin-promise": "^4.1.1",
     "eslint-plugin-standard": "^4.0.0",
-    "mocha": "^9.0.1",
+    "mocha": "^9.2.2",
     "mocha-junit-reporter": "^1.22.0",
-    "node-red": "^1.3.5",
-    "node-red-node-test-helper": "^0.2.7",
+    "node-red": "^3.0.2",
+    "node-red-node-test-helper": "^0.3.0",
     "should": "^13.2.3"
   },
   "scripts": {
