@@ -75,7 +75,8 @@ module.exports = function (RED) {
         RED.nodes.createNode(this, config);
 
         // check for all requierd parameters
-        var node = this;
+        var node = this;        
+        logger.init(node);
         var id = config.id;
         var customerID = RED.util.evaluateNodeProperty(config.customerID, config.customerIDType, node);
         var eqID = RED.util.evaluateNodeProperty(config.eqID, config.eqIDType, node);
@@ -102,7 +103,6 @@ module.exports = function (RED) {
         }
 
         // initialize file logger if enabled
-        logger.init(node);
         if (SelectionLogToFile == true) {
             logger.addFileLogger(id, pathLogFile, maxLogFileSize, maxNumLogFiles, "data")
         }

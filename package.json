@@ -1,6 +1,6 @@
 {
   "name": "@ais_automation/node-red-contrib-eqcloud-monitoring",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "node-red": {
     "nodes": {
       "Monitoring": "Monitoring.js"
