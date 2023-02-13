@@ -29,8 +29,10 @@ require("winston-daily-rotate-file");
 module.exports = {
     _filelogger: null,
     _node: null,
-    addFileLogger: function (id, node, pathLogFile, maxLogFileSize, maxNumLogFiles, level) {
+    init: function(node){
         this._node = node;
+    },
+    addFileLogger: function (id, pathLogFile, maxLogFileSize, maxNumLogFiles, level) {
         // custom LogLevels
         const logLevels = {
             error: 0,

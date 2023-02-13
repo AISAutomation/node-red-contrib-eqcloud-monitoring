@@ -102,8 +102,9 @@ module.exports = function (RED) {
         }
 
         // initialize file logger if enabled
+        logger.init(node);
         if (SelectionLogToFile == true) {
-            logger.addFileLogger(id, node, pathLogFile, maxLogFileSize, maxNumLogFiles, "data")
+            logger.addFileLogger(id, pathLogFile, maxLogFileSize, maxNumLogFiles, "data")
         }
 
         // set initial status
