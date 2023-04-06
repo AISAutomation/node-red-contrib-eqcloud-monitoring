@@ -424,7 +424,7 @@ module.exports = function (RED) {
                 // delete all processed items from storage 
                 // Hint: this includes the last processed item although it caused by an error. 
                 // This prevents queue processing from being blocked by a single error.
-                if (response.data.result[0].current_item_index) {
+                if (typeof response.data.result[0].current_item_index !== 'undefined') {
                     await storage.deleteData(data.ids.slice(0, response.data.result[0].current_item_index + 1));
                 }
 
