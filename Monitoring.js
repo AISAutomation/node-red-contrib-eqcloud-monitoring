@@ -173,7 +173,15 @@ module.exports = function (RED) {
         //Triggers if a new message comes to the node
         node.on("input", async function (msg) {
             //Check for config elements in message and identify (alarms, products, etc.)
-            logger.data("Input data:\n" + JSON.stringify(msg, null, 2)); //log to file
+            // Log only the payload: msg may contain circular objects (e.g. req/res of "http in"),
+            // JSON.stringify(msg) threw an uncaught exception and crashed Node-RED.
+            var inputData;
+            try {
+                inputData = JSON.stringify(msg.payload, null, 2);
+            } catch (e) {
+                inputData = "(payload not serializable: " + e.message + ")";
+            }
+            logger.data("Input data:\n" + inputData); //log to file
             for (const category of configCategories) {
                 if (Object.hasOwn(msg.payload, category)) {
                     await handleConfigData(
@@ -550,8 +558,13 @@ module.exports = function (RED) {
                 e.message.includes("Unexpected string in JSON") ||
                 e.message.includes("unable to open database file") ||
                 e.message.includes("SQLITE_MISUSE: Database is closed"))) {
+                // a repair (or initialization) is already running: do not start a second one in parallel
+                if (storageInitializationInProgress) return;
                 logger.debug("Delete old storage file and retry to open database");
                 const func = async () => {
+                    // mark as in progress before closing the storage, so incoming messages
+                    // wait (waitForStorage) instead of writing into the closed database
+                    storageInitializationInProgress = true;
                     storageInitialized = false;
                     try {
                         await storage.close();
@@ -560,7 +573,6 @@ module.exports = function (RED) {
                     }
                     try {
                         await storage.delete();
-                        storageInitializationInProgress = true;
                         await storage.initialize();
                         storageInitializationInProgress = false;
                         storageInitialized = true;

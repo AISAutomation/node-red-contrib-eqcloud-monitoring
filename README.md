@@ -9,10 +9,12 @@ This [node](https://flows.nodered.org/node/@ais_automation/node-red-contrib-eqcl
 
 ## Requirements
 
-- Node-RED 4.0 or newer
-- Node.js 22 or newer
+- Node-RED 5.0 or newer
+- Node.js 24 or newer
 
 Version 2.0.0 raised these minimum versions. If you are still running an older Node-RED or Node.js, stay on version 1.4.3 of this node.
+
+The buffer uses the SQLite database built into Node.js (`node:sqlite`), no native module has to be compiled anymore. Buffer files of former versions are taken over when updating.
 
 ## Installation
 

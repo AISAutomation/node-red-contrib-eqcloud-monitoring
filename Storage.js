@@ -23,8 +23,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 "use strict";
 
-const sqlite3 = require("sqlite3").verbose();
+// SQLite is built into Node.js (node:sqlite, no ExperimentalWarning since Node.js 24).
+// The synchronous API is wrapped into the existing Promise based interface of this class.
+const { DatabaseSync } = require("node:sqlite");
 const fs = require("fs");
+
+// message of the former sqlite3 module, evaluated by the Monitoring node (handleException)
+const DATABASE_CLOSED = "SQLITE_MISUSE: Database is closed";
 
 module.exports = class Storage {
     /*  private members not working here
@@ -61,15 +66,36 @@ module.exports = class Storage {
 
     _getDatabase(filename) {
         return new Promise((resolve, reject) => {
-            new sqlite3.Database(filename, function (err) {
-                // Hint: caused by an internal bug of sqlite3 opening an
-                // invalid database file, the callback error is always empty.
-                // Immediately afterwards, an internal exception occurs that must be handled
-                if (err) {
-                    return reject(err);
+            try {
+                // Hint: an invalid database file is not detected here,
+                // but with the first statement ("file is not a database")
+                return resolve(new DatabaseSync(filename));
+            } catch (e) {
+                return reject(e);
+            }
+        });
+    }
+
+    // returns the open database or throws the same error as the former sqlite3 module
+    _database() {
+        if (!this.db || !this.db.isOpen) {
+            throw new Error(DATABASE_CLOSED);
+        }
+        return this.db;
+    }
+
+    // executes a synchronous database action and returns a Promise like the former sqlite3 module
+    _execute(action) {
+        return new Promise((resolve, reject) => {
+            try {
+                return resolve(action(this._database()));
+            } catch (e) {
+                // database closed in the meantime: report it like the former sqlite3 module
+                if (e.code === "ERR_INVALID_STATE") {
+                    return reject(new Error(DATABASE_CLOSED));
                 }
-                return resolve(this);
-            });
+                return reject(e);
+            }
         });
     }
 
@@ -78,14 +104,25 @@ module.exports = class Storage {
         this.db = await this._getDatabase(this.filename);
         // create table
         await this._createTables();
-        // free empty file space to shrink file
-        // Hint: row IDs are reset starting with 1        
-        await this.wrapRunPromise("VACUUM;");
+        // free empty file space to shrink file, but only if it is worth it:
+        // node:sqlite is synchronous, VACUUM of a large file blocks Node-RED for seconds
+        await this._vacuumIfWorthwhile();
         // init housekeeper job
         this.dataActionCounter = 0;
         this.lastCheckedAction = 0;
         await this._newTransaction();
         this.timer = setTimeout(this._housekeeperJob.bind(null, this), this.housekeeperInterval);
+    }
+
+    // VACUUM only if at least 25% of the file is unused (free pages)
+    async _vacuumIfWorthwhile() {
+        const pages = await this._execute(db => ({
+            total: db.prepare("PRAGMA page_count").get().page_count,
+            free: db.prepare("PRAGMA freelist_count").get().freelist_count
+        }));
+        if (pages.free > 0 && pages.free >= pages.total * 0.25) {
+            await this.wrapRunPromise("VACUUM;");
+        }
     }
 
     async _createTables() {
@@ -114,30 +151,13 @@ module.exports = class Storage {
     }
 
     _getTableDefinition(tablename) {
-        var db = this.db;
-
-        return new Promise((resolve, reject) => {
-            db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name = '" + tablename + "'", (err, row) => {
-                //Errorhandling
-                if (err) {
-                    return reject(err);
-                }
-                return resolve(row);
-            });
-        });
+        return this._execute(db =>
+            db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?").get(tablename));
     }
 
     _getRowCount(tablename) {
-        var db = this.db;
-        return new Promise((resolve, reject) => {
-            db.get("SELECT COUNT(id) as c FROM " + tablename, [], (err, row) => {
-                //Errorhandling
-                if (err) {
-                    return reject(err);
-                }
-                return resolve(row.c);
-            });
-        });
+        return this._execute(db =>
+            db.prepare("SELECT COUNT(id) as c FROM " + tablename).get().c);
     }
 
     getStorageDataCount() {
@@ -149,9 +169,7 @@ module.exports = class Storage {
     }
 
     getStorageData(limit) {
-        var db = this.db;
-
-        return new Promise((resolve, reject) => {
+        return this._execute(db => {
             var dataArray = [];
             var idArray = [];
             var maxId = 0;
@@ -163,86 +181,54 @@ module.exports = class Storage {
                 args.unshift(new Date().getTime() / 86400000 + 2440587.5 - this.delay);
             }
 
-            db.each("SELECT data, id FROM messages"
+            var rows = db.prepare("SELECT data, id FROM messages"
                 + whereClause
                 + " ORDER BY timestamp, "
                 + this.orderColumn
-                + " LIMIT ?", args, (err, row) => {
-                //Errorhandling
-                if (err) {
-                    return reject(err);
+                + " LIMIT ?").iterate(...args);
+            for (const row of rows) {
+                if (maxId < row.id) {
+                    maxId = row.id;
                 }
-                try {
-                    if (maxId < row.id) {
-                        maxId = row.id;
-                    }
-                    var json = JSON.parse(row.data);
-                    dataArray.push(json);
-                    idArray.push(row.id);
-                } catch (e) {
-                    return reject(e);
-                }
+                dataArray.push(JSON.parse(row.data));
+                idArray.push(row.id);
+            }
 
-            }, (err) => {
-                if (err) {
-                    return reject(err);
-                }
-
-                const dataWithInformation = {
-                    items: dataArray,
-                    ids: idArray,
-                    maxId: maxId
-                };
-
-                return resolve(dataWithInformation);
-            });
+            return {
+                items: dataArray,
+                ids: idArray,
+                maxId: maxId
+            };
         });
     }
 
     getStorageConfigData() {
-        var db = this.db;
-
-        return new Promise((resolve, reject) => {
+        return this._execute(db => {
             var dataArray = [];
             var firstIndex;
             var lastIndex;
 
             // tight packed config data
-            db.each("SELECT category, MIN(id) AS min_id, MAX(id) AS max_id, '[' || group_concat(data, ',') || ']' as dataConcat FROM configMessages GROUP BY category;", (err, row) => {
-                //Errorhandling
-                if (err) {
-                    return reject(err);
+            var rows = db.prepare("SELECT category, MIN(id) AS min_id, MAX(id) AS max_id, '[' || group_concat(data, ',') || ']' as dataConcat FROM configMessages GROUP BY category;").iterate();
+            for (const row of rows) {
+                dataArray.push({
+                    items: JSON.parse(row.dataConcat),
+                    category: row.category
+                });
+                // get least / greatest id of all groups
+                if (!firstIndex || firstIndex > row.min_id) {
+                    firstIndex = row.min_id;
                 }
-                try {
-                    dataArray.push({
-                        items: JSON.parse(row.dataConcat),
-                        category: row.category
-                    });
-                    // get least / greatest id of all groups
-                    if (!firstIndex || firstIndex > row.min_id) {
-                        firstIndex = row.min_id;
-                    }
-                    if (!lastIndex || lastIndex < row.max_id) {
-                        lastIndex = row.max_id;
-                    }
-
-                } catch (e) {
-                    return reject(e);
+                if (!lastIndex || lastIndex < row.max_id) {
+                    lastIndex = row.max_id;
                 }
+            }
 
-            }, (err) => {
-                if (err) {
-                    return reject(err);
-                }
-
-                const dataWithInformation = {
-                    categories: dataArray,
-                    firstIndex: firstIndex,
-                    lastIndex: lastIndex
-                };
-
-                return resolve(dataWithInformation);
-            });
+            return {
+                categories: dataArray,
+                firstIndex: firstIndex,
+                lastIndex: lastIndex
+            };
         });
     }
 
@@ -254,10 +240,20 @@ module.exports = class Storage {
     }
 
     async deleteData(ids) {
-        var sql = "DELETE FROM messages WHERE id IN (";
-        ids.forEach(id => sql += id + ",");
-        sql = sql.substring(0, sql.length - 1) + ")";
-        await this.wrapRunPromise(sql);
+        // delete in blocks and give Node-RED time in between:
+        // node:sqlite is synchronous, one large DELETE blocks the event loop
+        // Hint: an empty id list still runs one (invalid) statement and throws as before,
+        // the housekeeper job relies on it to leave its cleanup loop
+        const blockSize = 1000;
+        for (let start = 0; start === 0 || start < ids.length; start += blockSize) {
+            if (start > 0) {
+                await new Promise(resolve => setImmediate(resolve));
+            }
+            var sql = "DELETE FROM messages WHERE id IN (";
+            ids.slice(start, start + blockSize).forEach(id => sql += id + ",");
+            sql = sql.substring(0, sql.length - 1) + ")";
+            await this.wrapRunPromise(sql);
+        }
 
         // increment data action counter for swap transaction job
         this.dataActionCounter++;
@@ -273,42 +269,25 @@ module.exports = class Storage {
     }
 
     _storeChunkData(tablename, chunk, additionalValues = []) {
-        var db = this.db;
-        return new Promise((resolve, reject) => {
-            db.serialize(() => {
-                try {
-                    var jsons = [];
-                    var sql = "INSERT INTO " + tablename + "(data";
-                    for (var addVal of additionalValues) {
-                        sql += ", " + addVal.column;
-                    }
-                    sql += ") VALUES (?";
-                    for (var i = 0; i < chunk.length; i++) {
-                        jsons.push(JSON.stringify(chunk[i]));
-                        for (var addVal2 of additionalValues) {
-                            sql += ",?";
-                            jsons.push(addVal2.value(chunk[i]));
-                        }
-                        sql += "),(?";
-                    }
-
-                    sql = sql.substring(0, sql.length - 3);
-                    var statement = db.prepare(sql);
-                    statement.run(jsons, (err) => {
-                        if (err) {
-                            return reject(err);
-                        }
-                    });
-                    statement.finalize((err) => {
-                        if (err) {
-                            return reject(err);
-                        }
-                        return resolve(true);
-                    });
-                } catch (e) {
-                    return reject(e);
+        return this._execute(db => {
+            var jsons = [];
+            var sql = "INSERT INTO " + tablename + "(data";
+            for (var addVal of additionalValues) {
+                sql += ", " + addVal.column;
+            }
+            sql += ") VALUES (?";
+            for (var i = 0; i < chunk.length; i++) {
+                jsons.push(JSON.stringify(chunk[i]));
+                for (var addVal2 of additionalValues) {
+                    sql += ",?";
+                    jsons.push(addVal2.value(chunk[i]));
                 }
-            });
+                sql += "),(?";
+            }
+
+            sql = sql.substring(0, sql.length - 3);
+            db.prepare(sql).run(...jsons);
+            return true;
         });
     }
 
@@ -366,24 +345,28 @@ module.exports = class Storage {
     _closeDatabase() {
         var db = this.db;
         return new Promise((resolve, reject) => {
-            // return if database is not initializied
-            if (!db) {
+            // return if database is not initializied or already closed
+            if (!db || !db.isOpen) {
                 return resolve(true);
             }
-            db.close((err) => {
-                //Errorhandling
-                if (err) {
-                    return reject(err);
-                }
-                return resolve(true);
-            });
+            try {
+                db.close();
+            } catch (e) {
+                return reject(e);
+            }
+            return resolve(true);
         });
     }
 
     async close() {
         clearTimeout(this.timer);
-        await this._commitTransaction();
-        await this._closeDatabase();
+        try {
+            await this._commitTransaction();
+        } finally {
+            // always release the file, even if the commit fails (e.g. damaged file),
+            // otherwise the file stays locked and cannot be deleted/recreated
+            await this._closeDatabase();
+        }
     }
 
     delete() {
@@ -403,15 +386,16 @@ module.exports = class Storage {
     }
 
     wrapRunPromise(statement, params) {
-        var db = this.db;
-        return new Promise((resolve, reject) => {
-            db.run(statement, params ? params : [], (err) => {
-                //Errorhandling
-                if (err) {
-                    return reject(err);
-                }
-                return resolve(true);
-            });
+        return this._execute(db => {
+            var stmt = db.prepare(statement);
+            if (Array.isArray(params)) {
+                stmt.run(...params);
+            } else if (params) {
+                stmt.run(params);
+            } else {
+                stmt.run();
+            }
+            return true;
         });
     }
 
@@ -432,7 +416,7 @@ module.exports = class Storage {
         try {
             // generate new transaction if necessary
             if (await self._swapTransaction()) {
-                // check if max file size reached 
+                // check if max file size reached
                 if (await self.getFileSize() >= self.maxfileSize) {
                     var itemCount = await self.getStorageDataCount();
 
@@ -451,7 +435,7 @@ module.exports = class Storage {
             }
 
         } catch {
-            // currently no error handling 
+            // currently no error handling
             //console.log(e);
         }
         // reschedule timer
