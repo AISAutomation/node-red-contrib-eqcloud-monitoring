@@ -168,34 +168,34 @@ module.exports = class Storage {
                 + " ORDER BY timestamp, "
                 + this.orderColumn
                 + " LIMIT ?", args, (err, row) => {
-                    //Errorhandling
-                    if (err) {
-                        return reject(err);
+                //Errorhandling
+                if (err) {
+                    return reject(err);
+                }
+                try {
+                    if (maxId < row.id) {
+                        maxId = row.id;
                     }
-                    try {
-                        if (maxId < row.id) {
-                            maxId = row.id;
-                        }
-                        var json = JSON.parse(row.data);
-                        dataArray.push(json);
-                        idArray.push(row.id);
-                    } catch (e) {
-                        return reject(e);
-                    }
+                    var json = JSON.parse(row.data);
+                    dataArray.push(json);
+                    idArray.push(row.id);
+                } catch (e) {
+                    return reject(e);
+                }
 
-                }, (err) => {
-                    if (err) {
-                        return reject(err);
-                    }
+            }, (err) => {
+                if (err) {
+                    return reject(err);
+                }
 
-                    const dataWithInformation = {
-                        items: dataArray,
-                        ids: idArray,
-                        maxId: maxId
-                    };
+                const dataWithInformation = {
+                    items: dataArray,
+                    ids: idArray,
+                    maxId: maxId
+                };
 
-                    return resolve(dataWithInformation);
-                });
+                return resolve(dataWithInformation);
+            });
         });
     }
 
@@ -356,7 +356,7 @@ module.exports = class Storage {
             [
                 {
                     column: "category",
-                    value: function (item) {
+                    value: function () {
                         return category;
                     }
                 }
@@ -450,7 +450,7 @@ module.exports = class Storage {
                 }
             }
 
-        } catch (e) {
+        } catch {
             // currently no error handling 
             //console.log(e);
         }

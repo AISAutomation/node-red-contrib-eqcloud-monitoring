@@ -1,0 +1,182 @@
+[
+    {
+        "id": "c0a1e5b7d2f40001",
+        "type": "comment",
+        "z": "c0a1e5b7d2f40000",
+        "name": "EquipmentCloud® Monitoring – example",
+        "info": "1. Double-click the Monitoring node and enter your credentials:\n   EquipmentCloud® → Equipment Configuration → Equipment → REST Service\n   (or use Authentication \"File\" with the downloaded REST configuration).\n2. Deploy.\n3. Trigger \"Equipment configuration\" once – creates states, events, alarms and process values.\n4. Trigger \"Sample data\" – the items are buffered and sent with the next cycle.\n5. Trigger \"Flush buffer\" to send the buffer immediately.\n\nOutput 1: response of the EquipmentCloud®, output 2: errors.",
+        "x": 200,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "c0a1e5b7d2f40002",
+        "type": "inject",
+        "z": "c0a1e5b7d2f40000",
+        "name": "Equipment configuration",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{\"states\":[{\"name\":\"Running\"},{\"name\":\"Stopped\"}],\"events\":[{\"id\":\"start\",\"name\":\"Start button pressed\"},{\"id\":\"stop\",\"name\":\"Stop button pressed\"}],\"statemodels\":[{\"event\":{\"id\":\"start\"},\"state\":{\"name\":\"Running\"},\"standardState\":{\"id\":\"prd\"}},{\"event\":{\"id\":\"stop\"},\"state\":{\"name\":\"Stopped\"},\"standardState\":{\"id\":\"sdt\"}}],\"alarmclasses\":[{\"name\":\"High Priority\",\"color\":\"#FF0000\"}],\"alarms\":[{\"id\":\"dooropen\",\"text\":\"Door still open\",\"type\":\"Error\",\"class\":{\"name\":\"High Priority\"}}],\"processvalues\":[{\"id\":\"rpm\",\"name\":\"RPM\",\"type\":\"double\",\"unit\":\"U/min\",\"color\":\"#45C78D\"},{\"id\":\"temperature\",\"name\":\"Temperature\",\"type\":\"double\",\"unit\":\"°C\",\"color\":\"#F21352\"}]}",
+        "payloadType": "json",
+        "x": 170,
+        "y": 100,
+        "wires": [
+            [
+                "c0a1e5b7d2f40006"
+            ]
+        ]
+    },
+    {
+        "id": "c0a1e5b7d2f40003",
+        "type": "inject",
+        "z": "c0a1e5b7d2f40000",
+        "name": "Sample data",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{\"items\":[{\"type\":2,\"id\":\"start\",\"timestamp\":\"\"},{\"type\":1,\"id\":\"dooropen\",\"timestamp\":\"\",\"action\":1},{\"type\":3,\"id\":null,\"timestamp\":\"\",\"count\":1,\"quality\":1},{\"type\":4,\"id\":\"rpm\",\"timestamp\":\"\",\"value\":1450.5},{\"type\":4,\"id\":\"temperature\",\"timestamp\":\"\",\"value\":42.3}]}",
+        "payloadType": "json",
+        "x": 170,
+        "y": 160,
+        "wires": [
+            [
+                "c0a1e5b7d2f40004"
+            ]
+        ]
+    },
+    {
+        "id": "c0a1e5b7d2f40004",
+        "type": "function",
+        "z": "c0a1e5b7d2f40000",
+        "name": "set timestamps to now",
+        "func": "const now = new Date().toISOString();\nfor (const item of msg.payload.items) {\n    item.timestamp = now;\n}\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 400,
+        "y": 160,
+        "wires": [
+            [
+                "c0a1e5b7d2f40006"
+            ]
+        ]
+    },
+    {
+        "id": "c0a1e5b7d2f40005",
+        "type": "inject",
+        "z": "c0a1e5b7d2f40000",
+        "name": "Flush buffer",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{\"buffer\":\"flush\"}",
+        "payloadType": "json",
+        "x": 170,
+        "y": 220,
+        "wires": [
+            [
+                "c0a1e5b7d2f40006"
+            ]
+        ]
+    },
+    {
+        "id": "c0a1e5b7d2f40006",
+        "type": "Monitoring",
+        "z": "c0a1e5b7d2f40000",
+        "name": "",
+        "inputTypeSelection": "custom",
+        "customerID": "",
+        "customerIDType": "str",
+        "eqID": "",
+        "eqIDType": "str",
+        "clientID": "",
+        "clientIDType": "str",
+        "clientSecret": "",
+        "clientSecretType": "str",
+        "cycleTime": "3600",
+        "cycleTimeType": "num",
+        "maxBufferSize": "100",
+        "maxBufferSizeType": "num",
+        "delay": "0",
+        "delayType": "num",
+        "priorityMode": "0",
+        "priorityModeType": "num",
+        "thingsConfigJson": "",
+        "SelectionLogToFile": false,
+        "pathLogFile": "",
+        "pathLogFileType": "str",
+        "maxNumLogFiles": "3",
+        "maxNumLogFilesType": "num",
+        "maxLogFileSize": "10",
+        "maxLogFileSizeType": "num",
+        "x": 640,
+        "y": 160,
+        "wires": [
+            [
+                "c0a1e5b7d2f40007"
+            ],
+            [
+                "c0a1e5b7d2f40008"
+            ]
+        ]
+    },
+    {
+        "id": "c0a1e5b7d2f40007",
+        "type": "debug",
+        "z": "c0a1e5b7d2f40000",
+        "name": "Response",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 850,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "c0a1e5b7d2f40008",
+        "type": "debug",
+        "z": "c0a1e5b7d2f40000",
+        "name": "Error",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 840,
+        "y": 180,
+        "wires": []
+    }
+]

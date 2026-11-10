@@ -98,7 +98,7 @@ module.exports = class OAuthClient {
     async requestAxios(req) {
 
         return axios(req)
-            .then(function (response, req) {
+            .then(function (response) {
                 return response;
             })
             .catch(function (error) {
