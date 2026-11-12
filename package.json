@@ -4,7 +4,7 @@
   "node-red": {
     "version": ">=5.0.0",
     "nodes": {
-      "Monitoring": "Monitoring.js"
+      "Monitoring": "src/Monitoring.js"
     }
   },
   "engines": {
@@ -57,29 +57,26 @@
     "mocha-junit-reporter": "^2.2.1",
     "node-red": "^5.0.9",
     "node-red-node-test-helper": "^0.3.6",
-    "should": "^13.2.3"
+    "should": "^13.2.3",
+    "c8": "^12.0.0"
   },
   "scripts": {
-    "test": "mocha --recursive \"test/*_spec.js\" --timeout 60000 --exit",
-    "lint": "eslint ."
+    "test": "mocha --recursive \"tests/*_spec.js\" --timeout 60000 --exit",
+    "lint": "eslint .",
+    "test:coverage": "c8 --reporter=lcov --reporter=text npm test"
   },
   "bugs": {
     "url": "https://github.com/AISAutomation/node-red-contrib-eqcloud-monitoring/issues"
   },
   "homepage": "https://github.com/AISAutomation/node-red-contrib-eqcloud-monitoring#readme",
-  "main": "Monitoring.js",
+  "main": "src/Monitoring.js",
   "files": [
-    "Monitoring.js",
-    "Monitoring.html",
-    "Logger.js",
-    "OAuthClient.js",
-    "Storage.js",
-    "icons/",
+    "src/",
     "images/",
     "examples/"
   ],
   "directories": {
     "example": "examples",
-    "test": "test"
+    "test": "tests"
   }
 }

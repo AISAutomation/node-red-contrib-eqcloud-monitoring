@@ -22,7 +22,7 @@ module.exports = [
         }
     },
     {
-        files: ["test/**/*.js"],
+        files: ["tests/**/*.js"],
         languageOptions: {
             globals: {
                 ...globals.mocha

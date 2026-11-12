@@ -62,7 +62,7 @@ typings/
 test*.xml
 
 # moch test files
-test/
+tests/
 
 # storage files
 *.db
