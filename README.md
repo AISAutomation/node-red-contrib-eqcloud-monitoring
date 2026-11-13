@@ -1,11 +1,20 @@
 # node-red-contrib-eqcloud-monitoring
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-[![logo](images/eqcloud.png?raw=true)](https://equipmentcloud.de/)
+[![logo](https://raw.githubusercontent.com/AISAutomation/node-red-contrib-eqcloud-monitoring/master/images/eqcloud.png)](https://equipmentcloud.de/)
 
 This [node](https://flows.nodered.org/node/@ais_automation/node-red-contrib-eqcloud-monitoring) is the easiest way to connect your equipment to the [EquipmentCloud®](https://equipmentcloud.de/) of Kontron AIS GmbH for any Monitoring purposes. 
 
-[![node](images/node.PNG?raw=true)](https://flows.nodered.org/node/@ais_automation/node-red-contrib-eqcloud-monitoring)
+[![node](https://raw.githubusercontent.com/AISAutomation/node-red-contrib-eqcloud-monitoring/master/images/node.PNG)](https://flows.nodered.org/node/@ais_automation/node-red-contrib-eqcloud-monitoring)
+
+## Requirements
+
+- Node-RED 5.0 or newer
+- Node.js 24 or newer
+
+Version 2.0.0 raised these minimum versions. If you are still running an older Node-RED or Node.js, stay on version 1.4.3 of this node.
+
+The buffer uses the SQLite database built into Node.js (`node:sqlite`), no native module has to be compiled anymore. Buffer files of former versions are taken over when updating.
 
 ## Installation
 
@@ -15,9 +24,11 @@ This [node](https://flows.nodered.org/node/@ais_automation/node-red-contrib-eqcl
 
 After installation you will find the node inside the Node-red palette. 
 
+An example flow is included: in Node-RED open *Import → Examples → @ais_automation/node-red-contrib-eqcloud-monitoring*. 
+
 ### Configuration
 
-![node_properties](images/node_properties.PNG?raw=true)
+![node_properties](https://raw.githubusercontent.com/AISAutomation/node-red-contrib-eqcloud-monitoring/master/images/node_properties.PNG)
 
 **Name**:
 Give the node an individual name (e.g. EquipmentName)

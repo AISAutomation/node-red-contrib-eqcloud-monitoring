@@ -104,7 +104,7 @@ module.exports = function (RED) {
 
         // initialize file logger if enabled
         if (SelectionLogToFile == true) {
-            logger.addFileLogger(id, pathLogFile, maxLogFileSize, maxNumLogFiles, "data")
+            logger.addFileLogger(id, pathLogFile, maxLogFileSize, maxNumLogFiles, "data");
         }
 
         // set initial status
@@ -142,6 +142,9 @@ module.exports = function (RED) {
         );
         var storageInitializationInProgress = false;
         var storageInitialized = false;
+        // set when the node is closed (stop, redeploy, delete):
+        // running operations must not start new transfers or touch the storage file anymore
+        var closing = false;
         async function initStorage() {
             try {
                 logger.debug("Open storage file " + id + ".db");
@@ -170,9 +173,17 @@ module.exports = function (RED) {
         //Triggers if a new message comes to the node
         node.on("input", async function (msg) {
             //Check for config elements in message and identify (alarms, products, etc.)
-            logger.data("Input data:\n" + JSON.stringify(msg, null, 2)); //log to file
+            // Log only the payload: msg may contain circular objects (e.g. req/res of "http in"),
+            // JSON.stringify(msg) threw an uncaught exception and crashed Node-RED.
+            var inputData;
+            try {
+                inputData = JSON.stringify(msg.payload, null, 2);
+            } catch (e) {
+                inputData = "(payload not serializable: " + e.message + ")";
+            }
+            logger.data("Input data:\n" + inputData); //log to file
             for (const category of configCategories) {
-                if (msg.payload.hasOwnProperty(category)) {
+                if (Object.hasOwn(msg.payload, category)) {
                     await handleConfigData(
                         msg.payload[category],
                         category);
@@ -180,7 +191,7 @@ module.exports = function (RED) {
             }
 
             //Monitoring messages
-            if (msg.payload.hasOwnProperty("items")) {
+            if (Object.hasOwn(msg.payload, "items")) {
                 await handleData(msg.payload.items);
             }
 
@@ -191,6 +202,8 @@ module.exports = function (RED) {
         });
 
         node.on("close", async function (removed, done) {
+            closing = true;
+            storageInitialized = false;
             // stop job to send data from buffer to cloud
             try {
                 clearTimeout(timer);
@@ -283,7 +296,7 @@ module.exports = function (RED) {
                     },
                     method: response.request.method,
                     headers: response.config.headers,
-                }
+                };
             }
             return {
                 statusCode: response.status,
@@ -298,7 +311,7 @@ module.exports = function (RED) {
             // Hint: its not allowed to call any other async function between
             // last call of loading config data and first call loading history data (transferringDataToCloud/storage.getStorageData).
             // Otherwise the loss of data is possible.             
-            while ((data = await storage.getStorageConfigData()).categories.length > 0) {
+            while (!closing && (data = await storage.getStorageConfigData()).categories.length > 0) {
                 //sort sending categories by priority
                 data.categories.sort(function (a, b) { return configCategories.indexOf(a.category) - configCategories.indexOf(b.category); });
 
@@ -353,6 +366,8 @@ module.exports = function (RED) {
 
             var repeatReadingBuffer = true;
             while (repeatReadingBuffer) {
+                // node has been closed during the transfer: stop, remaining data stays in the buffer
+                if (closing) return;
                 var readStartDate = new Date();
 
                 logger.debug("Reading...");
@@ -424,7 +439,7 @@ module.exports = function (RED) {
                 // delete all processed items from storage 
                 // Hint: this includes the last processed item although it caused by an error. 
                 // This prevents queue processing from being blocked by a single error.
-                if (typeof response.data.result[0].current_item_index !== 'undefined') {
+                if (typeof response.data.result[0].current_item_index !== "undefined") {
                     await storage.deleteData(data.ids.slice(0, response.data.result[0].current_item_index + 1));
                 }
 
@@ -464,6 +479,13 @@ module.exports = function (RED) {
         }
 
         function handleException(e) {
+            // node is closing: errors of still running operations (e.g. "Database is closed")
+            // are expected and must never be treated as a damaged storage file,
+            // otherwise the buffer file with not yet sent data would be deleted
+            if (closing) {
+                logger.debug("Ignore error while closing node: " + (e && e.message ? e.message : JSON.stringify(e)));
+                return;
+            }
             var errorOutput;
             // handle indirect exception:            
             //console.log(JSON.stringify(e, null, 4));
@@ -536,17 +558,21 @@ module.exports = function (RED) {
                 e.message.includes("Unexpected string in JSON") ||
                 e.message.includes("unable to open database file") ||
                 e.message.includes("SQLITE_MISUSE: Database is closed"))) {
+                // a repair (or initialization) is already running: do not start a second one in parallel
+                if (storageInitializationInProgress) return;
                 logger.debug("Delete old storage file and retry to open database");
                 const func = async () => {
+                    // mark as in progress before closing the storage, so incoming messages
+                    // wait (waitForStorage) instead of writing into the closed database
+                    storageInitializationInProgress = true;
                     storageInitialized = false;
                     try {
                         await storage.close();
-                    } catch (e) {
+                    } catch {
                         // does not matter
                     }
                     try {
                         await storage.delete();
-                        storageInitializationInProgress = true;
                         await storage.initialize();
                         storageInitializationInProgress = false;
                         storageInitialized = true;
@@ -566,6 +592,8 @@ module.exports = function (RED) {
         // - start with small delay after startup (see initial timer)
         // - repeat with cycle time
         async function transmitData(transmitCase) {
+            // no new transfer after the node has been closed
+            if (closing) return;
             var jobStartDate = Date.now();
 
             if (transmitCase == transmitDataTypes.FLUSH) {
