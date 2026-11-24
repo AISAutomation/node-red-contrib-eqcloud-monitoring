@@ -22,7 +22,7 @@ jobs:
           node-version: 24
       - run: npm ci
       - run: npm run lint
-      - run: npm test    # wieder rein, sobald tests/ existiert
+      - run: npm test
 
   publish-npm:
     needs: build
