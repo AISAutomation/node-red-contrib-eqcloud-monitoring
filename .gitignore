@@ -61,12 +61,11 @@ typings/
 .next
 test*.xml
 
-# moch test files
-tests/
-
 # storage files
 *.db
+# test databases used as fixtures
+!tests/fixtures/*.db
+!tests/upgrade_sample_data_v1.2.db
 
 # additional
 .vscode/
-package-lock.json

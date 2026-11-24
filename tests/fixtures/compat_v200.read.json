@@ -1,0 +1,349 @@
+{
+ "data_FIFO": {
+  "ids": [
+   7,
+   1,
+   3,
+   5,
+   6,
+   14,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13
+  ],
+  "items": [
+   {
+    "type": 2,
+    "id": "sdt",
+    "timestamp": "2026-11-01T07:59:55.000Z"
+   },
+   {
+    "type": 3,
+    "id": "PRODUCT",
+    "timestamp": "2026-11-01T08:00:00.000Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 1,
+    "id": "Error1",
+    "timestamp": "2026-11-01T08:00:00.000Z",
+    "action": 2,
+    "additional_values": [
+     "Tür offen",
+     1,
+     "5 m/h"
+    ]
+   },
+   {
+    "type": 4,
+    "id": "String 1",
+    "timestamp": "2026-11-01T08:00:01.000Z",
+    "value_string": "Grüße \"quoted\" \\ ✓ 日本"
+   },
+   {
+    "type": 4,
+    "id": "Bool 1",
+    "timestamp": "2026-11-01T08:00:01.000Z",
+    "value_boolean": true
+   },
+   {
+    "type": 2,
+    "id": "B_sdt",
+    "timestamp": "2026-11-01T08:00:55.000Z"
+   },
+   {
+    "type": 3,
+    "id": "B_PRODUCT",
+    "timestamp": "2026-11-01T08:01:00.000Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 2,
+    "id": "B_prd",
+    "timestamp": "2026-11-01T08:01:00.000Z"
+   },
+   {
+    "type": 1,
+    "id": "B_Error1",
+    "timestamp": "2026-11-01T08:01:00.000Z",
+    "action": 2,
+    "additional_values": [
+     "Tür offen",
+     1,
+     "5 m/h"
+    ]
+   },
+   {
+    "type": 4,
+    "id": "B_Sensor 1",
+    "timestamp": "2026-11-01T08:01:01.000Z",
+    "value": -1.3555
+   },
+   {
+    "type": 4,
+    "id": "B_String 1",
+    "timestamp": "2026-11-01T08:01:01.000Z",
+    "value_string": "Grüße \"quoted\" \\ ✓ 日本"
+   },
+   {
+    "type": 4,
+    "id": "B_Bool 1",
+    "timestamp": "2026-11-01T08:01:01.000Z",
+    "value_boolean": true
+   }
+  ],
+  "maxId": 14
+ },
+ "count": 12,
+ "configCount": 4,
+ "config": {
+  "categories": [
+   {
+    "items": [
+     {
+      "name": "High Priority",
+      "color": "#FF0000"
+     }
+    ],
+    "category": "alarmclasses"
+   },
+   {
+    "items": [
+     {
+      "id": "dooropen",
+      "text": "Tür noch offen",
+      "type": "Error",
+      "class": {
+       "name": "High Priority"
+      }
+     }
+    ],
+    "category": "alarms"
+   },
+   {
+    "items": [
+     {
+      "id": "rpm",
+      "name": "RPM",
+      "type": "double",
+      "unit": "U/min"
+     },
+     {
+      "id": "temperature",
+      "name": "Temperatur",
+      "type": "double",
+      "unit": "°C"
+     }
+    ],
+    "category": "processvalues"
+   }
+  ],
+  "firstIndex": 1,
+  "lastIndex": 4
+ },
+ "data_EventsFirst": {
+  "ids": [
+   7,
+   1,
+   3,
+   5,
+   6,
+   14,
+   9,
+   8,
+   10,
+   11,
+   12,
+   13
+  ],
+  "items": [
+   {
+    "type": 2,
+    "id": "sdt",
+    "timestamp": "2026-11-01T07:59:55.000Z"
+   },
+   {
+    "type": 3,
+    "id": "PRODUCT",
+    "timestamp": "2026-11-01T08:00:00.000Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 1,
+    "id": "Error1",
+    "timestamp": "2026-11-01T08:00:00.000Z",
+    "action": 2,
+    "additional_values": [
+     "Tür offen",
+     1,
+     "5 m/h"
+    ]
+   },
+   {
+    "type": 4,
+    "id": "String 1",
+    "timestamp": "2026-11-01T08:00:01.000Z",
+    "value_string": "Grüße \"quoted\" \\ ✓ 日本"
+   },
+   {
+    "type": 4,
+    "id": "Bool 1",
+    "timestamp": "2026-11-01T08:00:01.000Z",
+    "value_boolean": true
+   },
+   {
+    "type": 2,
+    "id": "B_sdt",
+    "timestamp": "2026-11-01T08:00:55.000Z"
+   },
+   {
+    "type": 2,
+    "id": "B_prd",
+    "timestamp": "2026-11-01T08:01:00.000Z"
+   },
+   {
+    "type": 3,
+    "id": "B_PRODUCT",
+    "timestamp": "2026-11-01T08:01:00.000Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 1,
+    "id": "B_Error1",
+    "timestamp": "2026-11-01T08:01:00.000Z",
+    "action": 2,
+    "additional_values": [
+     "Tür offen",
+     1,
+     "5 m/h"
+    ]
+   },
+   {
+    "type": 4,
+    "id": "B_Sensor 1",
+    "timestamp": "2026-11-01T08:01:01.000Z",
+    "value": -1.3555
+   },
+   {
+    "type": 4,
+    "id": "B_String 1",
+    "timestamp": "2026-11-01T08:01:01.000Z",
+    "value_string": "Grüße \"quoted\" \\ ✓ 日本"
+   },
+   {
+    "type": 4,
+    "id": "B_Bool 1",
+    "timestamp": "2026-11-01T08:01:01.000Z",
+    "value_boolean": true
+   }
+  ],
+  "maxId": 14
+ },
+ "data_EventsLast": {
+  "ids": [
+   7,
+   1,
+   3,
+   5,
+   6,
+   14,
+   8,
+   10,
+   9,
+   11,
+   12,
+   13
+  ],
+  "items": [
+   {
+    "type": 2,
+    "id": "sdt",
+    "timestamp": "2026-11-01T07:59:55.000Z"
+   },
+   {
+    "type": 3,
+    "id": "PRODUCT",
+    "timestamp": "2026-11-01T08:00:00.000Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 1,
+    "id": "Error1",
+    "timestamp": "2026-11-01T08:00:00.000Z",
+    "action": 2,
+    "additional_values": [
+     "Tür offen",
+     1,
+     "5 m/h"
+    ]
+   },
+   {
+    "type": 4,
+    "id": "String 1",
+    "timestamp": "2026-11-01T08:00:01.000Z",
+    "value_string": "Grüße \"quoted\" \\ ✓ 日本"
+   },
+   {
+    "type": 4,
+    "id": "Bool 1",
+    "timestamp": "2026-11-01T08:00:01.000Z",
+    "value_boolean": true
+   },
+   {
+    "type": 2,
+    "id": "B_sdt",
+    "timestamp": "2026-11-01T08:00:55.000Z"
+   },
+   {
+    "type": 3,
+    "id": "B_PRODUCT",
+    "timestamp": "2026-11-01T08:01:00.000Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 1,
+    "id": "B_Error1",
+    "timestamp": "2026-11-01T08:01:00.000Z",
+    "action": 2,
+    "additional_values": [
+     "Tür offen",
+     1,
+     "5 m/h"
+    ]
+   },
+   {
+    "type": 2,
+    "id": "B_prd",
+    "timestamp": "2026-11-01T08:01:00.000Z"
+   },
+   {
+    "type": 4,
+    "id": "B_Sensor 1",
+    "timestamp": "2026-11-01T08:01:01.000Z",
+    "value": -1.3555
+   },
+   {
+    "type": 4,
+    "id": "B_String 1",
+    "timestamp": "2026-11-01T08:01:01.000Z",
+    "value_string": "Grüße \"quoted\" \\ ✓ 日本"
+   },
+   {
+    "type": 4,
+    "id": "B_Bool 1",
+    "timestamp": "2026-11-01T08:01:01.000Z",
+    "value_boolean": true
+   }
+  ],
+  "maxId": 14
+ }
+}

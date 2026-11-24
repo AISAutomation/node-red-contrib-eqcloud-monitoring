@@ -1,0 +1,256 @@
+{
+ "data_FIFO": {
+  "ids": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10
+  ],
+  "items": [
+   {
+    "type": 1,
+    "id": "alarm1",
+    "timestamp": "2021-06-22T09:23:01.475Z",
+    "action": 1,
+    "additional_values": [
+     "low speed",
+     1,
+     "5 m/h"
+    ]
+   },
+   {
+    "type": 2,
+    "id": "event1",
+    "timestamp": "2021-06-22T09:23:02.476Z"
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:03.477Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 4,
+    "id": "numeric_process_value1",
+    "timestamp": "2021-06-22T09:23:04.478Z",
+    "value": -1.3555
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:05.479Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 2,
+    "id": "event2",
+    "timestamp": "2021-06-22T09:23:05.479Z"
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:05.479Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 2,
+    "id": "event1",
+    "timestamp": "2021-06-22T09:23:07.481Z"
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:07.481Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 1,
+    "id": "alarm1",
+    "timestamp": "2021-06-22T09:23:08.482Z",
+    "action": 0
+   }
+  ],
+  "maxId": 10
+ },
+ "count": 10,
+ "configCount": 0,
+ "config": {
+  "categories": []
+ },
+ "data_EventsFirst": {
+  "ids": [
+   1,
+   2,
+   3,
+   4,
+   6,
+   5,
+   7,
+   8,
+   9,
+   10
+  ],
+  "items": [
+   {
+    "type": 1,
+    "id": "alarm1",
+    "timestamp": "2021-06-22T09:23:01.475Z",
+    "action": 1,
+    "additional_values": [
+     "low speed",
+     1,
+     "5 m/h"
+    ]
+   },
+   {
+    "type": 2,
+    "id": "event1",
+    "timestamp": "2021-06-22T09:23:02.476Z"
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:03.477Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 4,
+    "id": "numeric_process_value1",
+    "timestamp": "2021-06-22T09:23:04.478Z",
+    "value": -1.3555
+   },
+   {
+    "type": 2,
+    "id": "event2",
+    "timestamp": "2021-06-22T09:23:05.479Z"
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:05.479Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:05.479Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 2,
+    "id": "event1",
+    "timestamp": "2021-06-22T09:23:07.481Z"
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:07.481Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 1,
+    "id": "alarm1",
+    "timestamp": "2021-06-22T09:23:08.482Z",
+    "action": 0
+   }
+  ],
+  "maxId": 10
+ },
+ "data_EventsLast": {
+  "ids": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   7,
+   6,
+   9,
+   8,
+   10
+  ],
+  "items": [
+   {
+    "type": 1,
+    "id": "alarm1",
+    "timestamp": "2021-06-22T09:23:01.475Z",
+    "action": 1,
+    "additional_values": [
+     "low speed",
+     1,
+     "5 m/h"
+    ]
+   },
+   {
+    "type": 2,
+    "id": "event1",
+    "timestamp": "2021-06-22T09:23:02.476Z"
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:03.477Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 4,
+    "id": "numeric_process_value1",
+    "timestamp": "2021-06-22T09:23:04.478Z",
+    "value": -1.3555
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:05.479Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:05.479Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 2,
+    "id": "event2",
+    "timestamp": "2021-06-22T09:23:05.479Z"
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:07.481Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 2,
+    "id": "event1",
+    "timestamp": "2021-06-22T09:23:07.481Z"
+   },
+   {
+    "type": 1,
+    "id": "alarm1",
+    "timestamp": "2021-06-22T09:23:08.482Z",
+    "action": 0
+   }
+  ],
+  "maxId": 10
+ }
+}

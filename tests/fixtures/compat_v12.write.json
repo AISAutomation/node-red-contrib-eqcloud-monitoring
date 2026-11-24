@@ -1,0 +1,362 @@
+{
+ "data_FIFO": {
+  "ids": [
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17
+  ],
+  "items": [
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:03.477Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 4,
+    "id": "numeric_process_value1",
+    "timestamp": "2021-06-22T09:23:04.478Z",
+    "value": -1.3555
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:05.479Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 2,
+    "id": "event2",
+    "timestamp": "2021-06-22T09:23:05.479Z"
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:05.479Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 2,
+    "id": "event1",
+    "timestamp": "2021-06-22T09:23:07.481Z"
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:07.481Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 1,
+    "id": "alarm1",
+    "timestamp": "2021-06-22T09:23:08.482Z",
+    "action": 0
+   },
+   {
+    "type": 3,
+    "id": "N_PRODUCT",
+    "timestamp": "2026-11-02T09:00:00.000Z",
+    "count": 2,
+    "quality": 1
+   },
+   {
+    "type": 2,
+    "id": "N_prd",
+    "timestamp": "2026-11-02T09:00:00.000Z"
+   },
+   {
+    "type": 1,
+    "id": "N_Error1",
+    "timestamp": "2026-11-02T09:00:00.000Z",
+    "action": 1
+   },
+   {
+    "type": 4,
+    "id": "N_Sensor",
+    "timestamp": "2026-11-02T09:00:01.000Z",
+    "value": 42.5
+   },
+   {
+    "type": 4,
+    "id": "N_String",
+    "timestamp": "2026-11-02T09:00:01.000Z",
+    "value_string": "neu geschrieben: äöü ß €"
+   },
+   {
+    "type": 4,
+    "id": "N_Bool",
+    "timestamp": "2026-11-02T09:00:01.000Z",
+    "value_boolean": false
+   },
+   {
+    "type": 2,
+    "id": "N_sdt",
+    "timestamp": "2026-11-02T09:00:02.000Z"
+   }
+  ],
+  "maxId": 17
+ },
+ "count": 15,
+ "configCount": 1,
+ "config": {
+  "categories": [
+   {
+    "items": [
+     {
+      "id": "N_alarm",
+      "text": "Neuer Alarm",
+      "type": "Warning",
+      "class": {
+       "name": "High Priority"
+      }
+     }
+    ],
+    "category": "alarms"
+   }
+  ],
+  "firstIndex": 1,
+  "lastIndex": 1
+ },
+ "data_EventsFirst": {
+  "ids": [
+   3,
+   4,
+   6,
+   5,
+   7,
+   8,
+   9,
+   10,
+   12,
+   11,
+   13,
+   14,
+   15,
+   16,
+   17
+  ],
+  "items": [
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:03.477Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 4,
+    "id": "numeric_process_value1",
+    "timestamp": "2021-06-22T09:23:04.478Z",
+    "value": -1.3555
+   },
+   {
+    "type": 2,
+    "id": "event2",
+    "timestamp": "2021-06-22T09:23:05.479Z"
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:05.479Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:05.479Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 2,
+    "id": "event1",
+    "timestamp": "2021-06-22T09:23:07.481Z"
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:07.481Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 1,
+    "id": "alarm1",
+    "timestamp": "2021-06-22T09:23:08.482Z",
+    "action": 0
+   },
+   {
+    "type": 2,
+    "id": "N_prd",
+    "timestamp": "2026-11-02T09:00:00.000Z"
+   },
+   {
+    "type": 3,
+    "id": "N_PRODUCT",
+    "timestamp": "2026-11-02T09:00:00.000Z",
+    "count": 2,
+    "quality": 1
+   },
+   {
+    "type": 1,
+    "id": "N_Error1",
+    "timestamp": "2026-11-02T09:00:00.000Z",
+    "action": 1
+   },
+   {
+    "type": 4,
+    "id": "N_Sensor",
+    "timestamp": "2026-11-02T09:00:01.000Z",
+    "value": 42.5
+   },
+   {
+    "type": 4,
+    "id": "N_String",
+    "timestamp": "2026-11-02T09:00:01.000Z",
+    "value_string": "neu geschrieben: äöü ß €"
+   },
+   {
+    "type": 4,
+    "id": "N_Bool",
+    "timestamp": "2026-11-02T09:00:01.000Z",
+    "value_boolean": false
+   },
+   {
+    "type": 2,
+    "id": "N_sdt",
+    "timestamp": "2026-11-02T09:00:02.000Z"
+   }
+  ],
+  "maxId": 17
+ },
+ "data_EventsLast": {
+  "ids": [
+   3,
+   4,
+   5,
+   7,
+   6,
+   9,
+   8,
+   10,
+   11,
+   13,
+   12,
+   14,
+   15,
+   16,
+   17
+  ],
+  "items": [
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:03.477Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 4,
+    "id": "numeric_process_value1",
+    "timestamp": "2021-06-22T09:23:04.478Z",
+    "value": -1.3555
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:05.479Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:05.479Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 2,
+    "id": "event2",
+    "timestamp": "2021-06-22T09:23:05.479Z"
+   },
+   {
+    "type": 3,
+    "id": null,
+    "timestamp": "2021-06-22T09:23:07.481Z",
+    "count": 1,
+    "quality": 1
+   },
+   {
+    "type": 2,
+    "id": "event1",
+    "timestamp": "2021-06-22T09:23:07.481Z"
+   },
+   {
+    "type": 1,
+    "id": "alarm1",
+    "timestamp": "2021-06-22T09:23:08.482Z",
+    "action": 0
+   },
+   {
+    "type": 3,
+    "id": "N_PRODUCT",
+    "timestamp": "2026-11-02T09:00:00.000Z",
+    "count": 2,
+    "quality": 1
+   },
+   {
+    "type": 1,
+    "id": "N_Error1",
+    "timestamp": "2026-11-02T09:00:00.000Z",
+    "action": 1
+   },
+   {
+    "type": 2,
+    "id": "N_prd",
+    "timestamp": "2026-11-02T09:00:00.000Z"
+   },
+   {
+    "type": 4,
+    "id": "N_Sensor",
+    "timestamp": "2026-11-02T09:00:01.000Z",
+    "value": 42.5
+   },
+   {
+    "type": 4,
+    "id": "N_String",
+    "timestamp": "2026-11-02T09:00:01.000Z",
+    "value_string": "neu geschrieben: äöü ß €"
+   },
+   {
+    "type": 4,
+    "id": "N_Bool",
+    "timestamp": "2026-11-02T09:00:01.000Z",
+    "value_boolean": false
+   },
+   {
+    "type": 2,
+    "id": "N_sdt",
+    "timestamp": "2026-11-02T09:00:02.000Z"
+   }
+  ],
+  "maxId": 17
+ }
+}
